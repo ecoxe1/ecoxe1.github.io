@@ -19,7 +19,9 @@ Não apague o arquivo `CNAME` do repositório, senão o domínio para de funcion
 | `assets/css/style.css` | Visual. As cores ficam no topo (`--gold`, `--bg`...) |
 | `assets/js/vendor/supabase-2.118.0.min.js` | Biblioteca do Supabase usada só no painel, hospedada aqui (sem CDN). Para atualizar, troque o arquivo e o nome no `admin.html` |
 | `supabase/schema.sql` | Banco completo para uma instalação **nova** (tabelas, regras de segurança, limite de envios e pasta de fotos) |
-| `supabase/migrations/` | Alterações para um banco que **já existe**. Rode na ordem do nome (`01` a `11`) no SQL Editor. As 01 a 11 já foram rodadas no projeto `ec-oxe` em 17/11/2026 |
+| `supabase/migrations/` | Alterações para um banco que **já existe**. Rode na ordem do nome (`01` a `14`) no SQL Editor. As 01 a 14 já foram rodadas no projeto `ec-oxe` em 17/11/2026 |
+| `supabase/functions/checa-live/` | Função do Supabase que confere se os canais do YouTube e da Twitch estão ao vivo (farol do menu) |
+| `assets/js/favorito-tracker.js` | Código do favorito "⚽ Copiar do tracker" (o painel monta o link a partir dele; não roda no site) |
 | `supabase/verificacao.sql` | Conferência só de leitura, para rodar depois das migrações |
 | `tools/atualiza-head.js` | Gera o trecho comum do `<head>` das 8 páginas (CSP, fontes, ícones, prévia de compartilhamento) e troca o `?v=N` |
 | `tools/check-data.js` | Confere o `data.js` (placar x gols, nomes do elenco, somas, V+E+D). Rode antes de commitar |
@@ -35,7 +37,7 @@ Acesse https://ecoxe.club/admin.html e entre com o e-mail e a senha de administr
 - **Segurança:** "Sair" desconecta só este aparelho; o painel sai sozinho depois de 30 minutos parado e não abre dentro de outro site.
 - **Amistosos:** confirme o pedido (ele aparece na agenda pública), depois marque como realizado e coloque o placar.
 - **Arquivar:** candidaturas e amistosos não se apagam direto. "Arquivar" manda o item para a gaveta "Arquivados" no fim da lista (amistoso arquivado sai da agenda pública); lá dentro ficam "Desarquivar" e "Apagar de vez".
-- **Ao vivo:** cadastre uma vez o canal de cada jogador (YouTube pelo link `youtube.com/channel/UC…`, Twitch ou Kick). Quando ele entrar ao vivo, clique em **Entrar ao vivo**: o site mostra o selo AO VIVO no menu e uma faixa na página inicial por 4 horas, e depois volta sozinho para offline. **+2h** estica (até 12 h), **Encerrar** desliga na hora. No YouTube, colar o link da live faz o player abrir direto nela. O vídeo só carrega quando o visitante clica em Assistir.
+- **Ao vivo:** cadastre uma vez o canal de cada jogador (YouTube pelo link `youtube.com/channel/UC…`, Twitch ou Kick). O **farol "Ao vivo"** do menu fica vermelho; quem clica faz o site conferir no YouTube e na Twitch. Se alguém estiver no ar, o farol fica verde para todo mundo e abre o player. Depois de 4 h o site confere de novo sozinho (e de 2 em 2 h enquanto a live continuar). Os botões **Entrar ao vivo**, **+2h** e **Encerrar** do painel forçam na mão; no Kick, são o único jeito.
 - **Notícias e Vídeos:** publique com foto ou vídeo, sem mexer em código. Para esconder sem apagar, edite e desmarque "Publicada". Apagar também tira do Storage as fotos e vídeos enviados pelo painel.
 
 ## Supabase
@@ -58,9 +60,17 @@ Acesse https://ecoxe.club/admin.html e entre com o e-mail e a senha de administr
 2. MFA (segundo fator): em *Authentication > Multi-Factor* confira que o TOTP está habilitado, mas **isso sozinho não protege nada**: o painel ainda não tem tela para cadastrar e pedir o código, nem as regras do banco exigem o segundo fator (`aal2`). Isso é uma etapa de código, ainda pendente. Até lá, use senha longa e única para cada admin.
 3. Depois de rodar as migrações, abra *Advisors > Security Advisor* e confira se não sobrou alerta.
 
+## Atualizar as estatísticas (sem mexer em código)
+
+1. No painel, aba **Estatísticas**, arraste o botão **⚽ Copiar do tracker** para a barra de favoritos (uma vez só).
+2. Abra a página do EC OXE no Pro Clubs Tracker, espere carregar e clique no favorito. Ele abre cada partida e, no fim, mostra **Enviar para o painel do EC OXE**.
+3. Confira a prévia no painel e clique em **Gravar no site**. Partidas, temporada (V/E/D, gols, divisão, SR) e os números do elenco atualizam na hora.
+
+O tracker só mostra as últimas partidas; o banco guarda todas que já foram importadas. Jogador novo aparece sozinho no Elenco (com o ID do jogo; para trocar o nome mostrado, cadastre-o no `data.js` com o mesmo `psn`). Se o tracker mudar o jeito de mostrar e a prévia vier errada, o ajuste é na função `leTracker()` do `admin.js`.
+
 ## Atualizar dados fixos
 
-Elenco e partidas ficam em `assets/js/data.js`. Os números da página inicial são calculados a partir das partidas.
+Nomes, posições, OVR e fotos do elenco ficam em `assets/js/data.js`. As partidas de lá são só reserva (usadas se o banco não responder).
 Horários das partidas em horário de Brasília, com `-03:00` no fim. Antes de commitar, rode `node tools/check-data.js`: ERRO precisa corrigir, AVISO é só para conferir.
 Ao trocar CSS ou JS, aumente a versão para o navegador não usar a antiga: `node tools/atualiza-head.js 9` (troca o `?v=N` das 8 páginas; o número atual está no link do `style.css`).
 
@@ -71,3 +81,10 @@ npx http-server . -p 8090 -c-1
 ```
 
 Depois acesse http://localhost:8090
+
+## Checagem automática da live (função `checa-live`)
+
+- Fica em `supabase/functions/checa-live/index.ts` e roda no Supabase (*Edge Functions*), com **Verify JWT desligado** (o site chama com a chave publishable; a proteção é o intervalo de 1 minuto por canal).
+- Segredos em *Edge Functions > Secrets* (nunca no código nem no site): `YOUTUBE_API_KEY`, `TWITCH_CLIENT_ID` e `TWITCH_CLIENT_SECRET`. Sem a chave de uma plataforma, ela simplesmente não é conferida.
+- YouTube: lê os vídeos recentes do canal (RSS, sem custo) e faz 1 consulta à API (1 ponto da cota grátis de 10.000/dia). Twitch: API oficial com token de app.
+- Mudou o código? Cole o arquivo de novo no editor da função no painel do Supabase e clique em *Deploy*.

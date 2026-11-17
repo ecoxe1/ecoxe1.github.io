@@ -85,13 +85,13 @@
       <div class="adm-top"><span class="by">Logado como <b>${esc(session.user.email)}</b></span><button class="btn btn-ghost btn-sm" id="sair" type="button">Sair</button></div>
       <div class="toolbar adm-tabs" role="tablist">
         <button class="fbtn" data-aba="cand">Candidaturas</button><button class="fbtn" data-aba="amis">Amistosos</button>
-        <button class="fbtn" data-aba="news">Notícias</button><button class="fbtn" data-aba="vid">Vídeos</button><button class="fbtn" data-aba="live">Ao vivo</button>
+        <button class="fbtn" data-aba="news">Notícias</button><button class="fbtn" data-aba="vid">Vídeos</button><button class="fbtn" data-aba="live">Ao vivo</button><button class="fbtn" data-aba="stats">Estatísticas</button>
       </div><div id="aba"></div>`;
     q("#sair").onclick = async () => { await sb.auth.signOut({ scope: "local" }); telaLogin(); }; /* só este aparelho */
     qa("[data-aba]").forEach(b => b.onclick = () => abre(b.dataset.aba));
-    abre(guarda.get("oxe_aba") || "cand");
+    abre(location.hash.startsWith("#importar=") ? "stats" : (guarda.get("oxe_aba") || "cand")); /* veio do favorito do tracker */
   }
-  const ABAS = { cand: abaCandidaturas, amis: abaAmistosos, news: abaNoticias, vid: abaVideos, live: abaLives };
+  const ABAS = { cand: abaCandidaturas, amis: abaAmistosos, news: abaNoticias, vid: abaVideos, live: abaLives, stats: abaStats };
   function abre(k) {
     if (!ABAS[k]) k = "cand";
     guarda.set("oxe_aba", k);
@@ -386,7 +386,7 @@
     q("#aba").innerHTML = `
       <form class="panel" id="lform" novalidate>
         <h3>${l ? "Editar canal" : "Cadastrar canal"}</h3>
-        <p class="sec-sub" style="margin:0 0 16px">Cadastre o canal uma vez. Quando o jogador entrar ao vivo, clique em <b>Entrar ao vivo</b> aqui embaixo: o selo "AO VIVO" aparece no site por 4 horas.</p>
+        <p class="sec-sub" style="margin:0 0 16px">Cadastre o canal uma vez. No YouTube e na Twitch, o farol "Ao vivo" do site confere sozinho quando alguém clica nele (e de novo depois de 4 h, depois de 2 em 2 h). <b>Entrar ao vivo</b> e <b>Encerrar</b> aqui embaixo servem para forçar na mão (e são o único jeito no Kick).</p>
         <div class="fgrid">
           <div><label>Jogador *</label><input name="jogador" maxlength="40" required value="${esc(l?.jogador || "")}"></div>
           <div><label>Link do canal * <small>(YouTube: youtube.com/channel/UC… · Twitch: twitch.tv/nome · Kick: kick.com/nome)</small></label>
@@ -397,7 +397,8 @@
       <h3 style="margin-top:32px">Canais</h3>
       ${data.length ? data.map(x => { const noAr = LIVE.noAr(x); return `<div class="panel adm-row" data-id="${esc(x.id)}">
         <div><b>${esc(x.jogador)}</b><small class="by"> · ${esc(LIVE.nome[x.plataforma] || x.plataforma)} · ${link(LIVE.pagina(x), "ver canal")}</small><br>
-          ${noAr ? `<span class="adm-badge confirmado">ao vivo até ${ate(x)}</span>${x.titulo ? ` <small class="by">${esc(x.titulo)}</small>` : ""}` : `<span class="adm-badge">offline</span>`}</div>
+          ${noAr ? `<span class="adm-badge confirmado">ao vivo até ${ate(x)}</span>${x.titulo ? ` <small class="by">${esc(x.titulo)}</small>` : ""}` : `<span class="adm-badge">offline</span>`}
+          <br><small class="by">${x.plataforma === "kick" ? "Kick: só pelos botões daqui (sem checagem automática)" : x.checado_em ? `Última checagem automática: ${quando(x.checado_em)}` : "Ainda não foi checado automaticamente"}</small></div>
         <div class="factions" style="margin:0">${noAr
           ? `<button class="btn btn-ghost btn-sm" data-mais>+2h</button><button class="btn btn-gold btn-sm" data-encerrar>Encerrar</button>`
           : `<button class="btn btn-gold btn-sm" data-ligar>Entrar ao vivo</button>`}
@@ -449,6 +450,142 @@
         muda(x.id, { ate: new Date(novo).toISOString() }, "Mais 2 horas no ar.");
       };
       if (b("[data-encerrar]")) b("[data-encerrar]").onclick = () => muda(x.id, { ate: null, video: null, titulo: "" }, "Live encerrada no site.");
+    });
+  }
+
+  /* ---------- Estatísticas (importadas do Pro Clubs Tracker) ---------- */
+  /* O favorito lê a página do tracker e abre o painel com #importar=<texto>. Aqui o texto vira partidas:
+     placar, adversário, quem jogou, gols, assistências, MVP (⭐), número e data da partida, e "Won/Lost by DNF".
+     Se o tracker mudar o jeito de mostrar, é só ajustar leTracker() (o favorito só copia o texto). */
+  const POS_TRACKER = { goalkeeper: "GK", defender: "ZAG", midfielder: "MEI", forward: "ATA" };
+  const COMP = { league: "Liga", cup: "Copa", playoff: "Playoff", friendly: "Amistoso" };
+  function leTracker(pacote) {
+    const avisos = [], partidasLidas = [];
+    const meu = String(clube.nome).toLowerCase();
+    for (const bruto of pacote.cartoes || []) {
+      const t = String(bruto).replace(/\r/g, "");
+      const idm = t.match(/Match #(\d{1,20})\s*•\s*(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s*(\d{1,2}):(\d{2})/);
+      if (!idm) { avisos.push("Uma partida sem número/data foi ignorada."); continue; }
+      let [, id, a, b, ano, h, mi] = idm;
+      let diaN = +a, mes = +b;
+      if (/^en-US/i.test(pacote.lingua || "") && +a <= 12) { diaN = +b; mes = +a; } /* americano: mês/dia */
+      /* hora mostrada no fuso de quem rodou o favorito -> instante exato */
+      const data = new Date(Date.UTC(+ano, mes - 1, diaN, +h, +mi) + (Number(pacote.tz) || 0) * 60000).toISOString();
+      const pl = t.match(/\n([^\n]+)\n+\d+ players?\n+(\d+)\n+-\n+(\d+)\n+([^\n]+)\n+\d+ players?/);
+      if (!pl) { avisos.push(`Partida ${id}: não achei o placar; ignorada.`); continue; }
+      const nosPrimeiro = pl[1].trim().toLowerCase() === meu;
+      const gp = +(nosPrimeiro ? pl[2] : pl[3]), gc = +(nosPrimeiro ? pl[3] : pl[2]), adv = (nosPrimeiro ? pl[4] : pl[1]).trim().slice(0, 60);
+      const cm = t.match(/🏆\s*([A-Za-z]+)/);
+      const comp = cm ? (COMP[cm[1].toLowerCase()] || cm[1]) : "Liga";
+      /* tabela "ALL PLAYERS - EC OXE": nome, posição, nota, gols, assistências... (⭐ = melhor em campo) */
+      const ini = t.toLowerCase().indexOf("all players - " + meu);
+      if (ini < 0) { avisos.push(`Partida ${id}: sem a tabela de jogadores (abra "Player Stats"); ignorada.`); continue; }
+      const resto = t.slice(ini).split("\n").slice(1);
+      const jogadores = [], gols = [], assist = []; let mvp = "";
+      for (const linha of resto) {
+        if (/^📋|ALL PLAYERS|^Match #|^Player match/i.test(linha)) break;
+        const c = linha.split("\t");
+        if (c.length < 5 || /^Player$/i.test(c[0].trim())) continue;
+        const estrela = c[0].includes("⭐"), psn = c[0].replace("⭐", "").trim().slice(0, 40);
+        if (!psn) continue;
+        const num = s => /^\d+$/.test(String(s).trim()) ? +s : 0;
+        const g = num(c[3]), as = num(c[4]);
+        jogadores.push({ psn, pos: POS_TRACKER[String(c[1]).trim().toLowerCase()] || "", nota: Number(c[2]) || null });
+        for (let k = 0; k < g; k++) gols.push(psn);
+        for (let k = 0; k < as; k++) assist.push(psn);
+        if (estrela) mvp = psn;
+      }
+      const dnf = t.match(/(Won|Lost) by DNF/i);
+      const obs = dnf ? (/won/i.test(dnf[1]) ? `Vitória por W.O.: o adversário abandonou a partida${gols.length !== gp ? ` quando estava ${gols.length}–${gc}` : ""}.` : "Derrota por W.O.: o EC OXE abandonou a partida.") : "";
+      if (gols.length !== gp && !dnf) avisos.push(`Partida ${id} (${adv}): placar ${gp}, mas ${gols.length} gol(s) na tabela (gol contra?).`);
+      partidasLidas.push({ id, data, adv, comp, gp, gc, gols, assist, mvp, obs, jogadores: jogadores.slice(0, 11) });
+    }
+    /* cabeçalho do clube: 11W 5D 11L, SR, divisão, gols por jogo e saldo */
+    const c = String(pacote.cabecalho || "");
+    const ved = c.match(/(\d+)W\s+(\d+)D\s+(\d+)L/), sr = c.match(/SR:\s*(\d+)/), div = c.match(/☆\s*(\d{1,2})\b/);
+    const gpm = c.match(/GOALS\/GM\s+([\d.]+)/i), saldo = c.match(/GOAL DIFF\s+([+-]?\d+)/i);
+    let temporada = null;
+    if (ved) {
+      const v = +ved[1], e = +ved[2], d = +ved[3], jogos = v + e + d;
+      const gpT = gpm ? Math.round(Number(gpm[1]) * jogos) : null, gcT = gpT !== null && saldo ? gpT - Number(saldo[1]) : null;
+      temporada = { id: 1, jogos, v, e, d, gp: gpT ?? 0, gc: gcT ?? 0, divisao: div ? +div[1] : null, sr: sr ? +sr[1] : null };
+      if (gpT === null || gcT === null) avisos.push("Não achei gols por jogo/saldo no cabeçalho; gols da temporada ficam 0.");
+    } else avisos.push("Não achei V/E/D no cabeçalho do clube; a temporada não será atualizada.");
+    return { partidas: partidasLidas, temporada, avisos };
+  }
+
+  async function abaStats() {
+    const valendo = marca();
+    const [{ data: noBanco, error }, { data: temp }] = await Promise.all([
+      sb.from("partidas").select("id,data,adv,gp,gc,atualizado_em").order("data", { ascending: false }),
+      sb.from("temporada").select("*").maybeSingle(),
+    ]);
+    if (!valendo()) return;
+    if (error) throw error;
+    let lido = null;
+    const h = location.hash;
+    if (h.startsWith("#importar=")) {
+      try { lido = leTracker(JSON.parse(decodeURIComponent(h.slice(10)))); }
+      catch (e) { lido = { partidas: [], temporada: null, avisos: ["Os dados do favorito vieram estragados. Rode o favorito de novo."] }; }
+    }
+    /* link do favorito, montado a partir de assets/js/favorito-tracker.js */
+    let favorito = "";
+    try {
+      const fonte = await fetch("assets/js/favorito-tracker.js?v=" + Date.now()).then(r => r.ok ? r.text() : Promise.reject());
+      favorito = "javascript:" + encodeURIComponent(fonte.replace(/\/\*[\s\S]*?\*\//, "").replace(/\s*\n\s*/g, " ").trim());
+    } catch (e) {}
+    if (!valendo()) return;
+    const novos = lido ? lido.partidas.filter(p => !noBanco.some(x => x.id === p.id)).length : 0;
+    const nomeDe = psn => (elenco.find(p => String(p.psn || "").toLowerCase() === psn.toLowerCase()) || {}).n || psn;
+    const lista = arr => esc([...new Set(arr)].map(n => { const q = arr.filter(x => x === n).length; return nomeDe(n) + (q > 1 ? ` (${q})` : ""); }).join(", ") || "-");
+    q("#aba").innerHTML = `
+      ${lido ? `<div class="panel" id="importe">
+        <h3>Importar do tracker</h3>
+        ${lido.avisos.length ? `<div class="msg err" style="margin:0 0 14px">${lido.avisos.map(esc).join("<br>")}</div>` : ""}
+        ${lido.temporada ? `<p class="sec-sub" style="margin:0 0 10px"><b>Temporada:</b> ${lido.temporada.jogos} jogos · ${lido.temporada.v}V ${lido.temporada.e}E ${lido.temporada.d}D · ${lido.temporada.gp} gols pró x ${lido.temporada.gc} contra · Divisão ${esc(lido.temporada.divisao ?? "-")} · SR ${esc(lido.temporada.sr ?? "-")}</p>` : ""}
+        <p class="sec-sub" style="margin:0 0 14px">${lido.partidas.length} partida(s) lida(s): <b>${novos} nova(s)</b>, ${lido.partidas.length - novos} já no banco (serão atualizadas).</p>
+        ${lido.partidas.map(p => `<div class="adm-row panel" style="display:block">
+          <b>${esc(clube.nome)} ${p.gp}–${p.gc} ${esc(p.adv)}</b> <small class="by">· ${esc(p.comp)} · nº ${esc(p.id)} · ${quando(p.data)}${noBanco.some(x => x.id === p.id) ? "" : " · <b>nova</b>"}</small>
+          <div class="by" style="margin-top:6px">⚽ ${lista(p.gols)} · 🅰️ ${lista(p.assist)} · ⭐ ${esc(p.mvp ? nomeDe(p.mvp) : "-")}<br>👥 ${esc(p.jogadores.map(j => nomeDe(j.psn)).join(", ") || "-")}${p.obs ? `<br>ℹ️ ${esc(p.obs)}` : ""}</div></div>`).join("")}
+        <div class="factions">${lido.partidas.length || lido.temporada ? `<button class="btn btn-gold" type="button" id="gravar">Gravar no site</button>` : ""}<button class="btn btn-ghost" type="button" id="descartar">Descartar</button></div>
+      </div>` : ""}
+      <div class="panel" style="margin-top:${lido ? "24px" : "0"}">
+        <h3>Atualizar pelo Pro Clubs Tracker</h3>
+        <ol class="reqs">
+          <li>Arraste este botão para a barra de favoritos do navegador (uma vez só): ${favorito ? `<a class="btn btn-gold btn-sm" id="favorito" href="${esc(favorito)}" title="Arraste para a barra de favoritos">⚽ Copiar do tracker</a>` : "<i>não foi possível montar o favorito agora</i>"}</li>
+          <li>Abra <a href="${esc(clube.tracker)}" target="_blank" rel="noopener">a página do EC OXE no Pro Clubs Tracker</a> e espere carregar as partidas.</li>
+          <li>Clique no favorito <b>⚽ Copiar do tracker</b>. Ele abre cada partida e, no fim, mostra <b>Enviar para o painel do EC OXE</b>.</li>
+          <li>Confira a prévia aqui e clique em <b>Gravar no site</b>.</li>
+        </ol>
+        <p class="sec-sub" style="margin:12px 0 0">O tracker mostra só as últimas partidas; o banco guarda todas que já foram importadas.${temp ? ` Última atualização da temporada: ${quando(temp.atualizado_em)}.` : ""}</p>
+      </div>
+      <h3 style="margin-top:32px">Partidas no banco (${noBanco.length})</h3>
+      ${noBanco.length ? noBanco.map(x => `<div class="panel adm-row"><div><b>${esc(clube.nome)} ${x.gp}–${x.gc} ${esc(x.adv)}</b><small class="by"> · nº ${esc(x.id)} · ${quando(x.data)}</small></div>
+        <div class="factions" style="margin:0"><button class="btn btn-ghost btn-sm" data-del="${esc(x.id)}">Apagar</button></div></div>`).join("")
+        : `<div class="empty-state">Nenhuma partida importada ainda. Até lá, o site usa as partidas do data.js.</div>`}`;
+    const fav = q("#favorito");
+    if (fav) fav.onclick = e => { e.preventDefault(); diga("Arraste o botão para a barra de favoritos (não clique aqui).", false); };
+    const limpaHash = () => history.replaceState(null, "", location.pathname + location.search);
+    if (q("#descartar")) q("#descartar").onclick = () => { limpaHash(); abaStats(); };
+    if (q("#gravar")) q("#gravar").onclick = async ev => {
+      ev.target.disabled = true; ev.target.textContent = "Gravando…";
+      const agoraIso = new Date().toISOString();
+      if (lido.partidas.length) {
+        const { error } = await sb.from("partidas").upsert(lido.partidas.map(p => ({ ...p, atualizado_em: agoraIso })), { onConflict: "id" });
+        if (error) { ev.target.disabled = false; ev.target.textContent = "Gravar no site"; return falhou(error, "Erro ao gravar partidas: "); }
+      }
+      if (lido.temporada) {
+        const { error } = await sb.from("temporada").upsert({ ...lido.temporada, atualizado_em: agoraIso }, { onConflict: "id" });
+        if (error) { ev.target.disabled = false; ev.target.textContent = "Gravar no site"; return falhou(error, "Erro ao gravar a temporada: "); }
+      }
+      try { sessionStorage.removeItem("oxe_stats"); } catch (e) {}
+      limpaHash(); diga(`Gravado: ${lido.partidas.length} partida(s)${lido.temporada ? " e a temporada" : ""}.`); abaStats();
+    };
+    qa("[data-del]").forEach(b => b.onclick = async () => {
+      if (!await pergunta({ titulo: `Apagar a partida nº ${b.dataset.del}?`, texto: "Ela sai do site. Se ainda aparecer no tracker, volta na próxima importação.", ok: "Apagar", perigo: true })) return;
+      const { error } = await sb.from("partidas").delete().eq("id", b.dataset.del);
+      if (error) return falhou(error, "Erro ao apagar: ");
+      diga("Partida apagada."); abaStats();
     });
   }
 

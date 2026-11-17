@@ -289,7 +289,7 @@ textarea{min-height:110px;resize:vertical}
 @keyframes live-pulso{70%{box-shadow:0 0 0 7px rgba(255,59,59,0)}100%{box-shadow:0 0 0 0 rgba(255,59,59,0)}}
 .links a.live-link{display:inline-flex;align-items:center;gap:7px;color:#ffb3b3;font-weight:700}
 .links a.live-link:hover{color:#fff}
-.live-faixa{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;padding:10px 20px;background:linear-gradient(90deg,rgba(255,59,59,.16),rgba(255,59,59,.06));border-bottom:1px solid rgba(255,59,59,.35);color:var(--cream);font-size:15px}
+.live-faixa{width:100%;border:0;border-bottom:1px solid rgba(255,59,59,.35);cursor:pointer;font:inherit;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;padding:10px 20px;background:linear-gradient(90deg,rgba(255,59,59,.16),rgba(255,59,59,.06));border-bottom:1px solid rgba(255,59,59,.35);color:var(--cream);font-size:15px}
 .live-faixa:hover{text-decoration:none;background:linear-gradient(90deg,rgba(255,59,59,.24),rgba(255,59,59,.1))}
 .live-faixa b{color:#ffb3b3;letter-spacing:.08em;font-size:13px}
 .live-ver{color:var(--gold2);font-weight:600}
@@ -309,3 +309,17 @@ textarea{min-height:110px;resize:vertical}
 .live-tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;letter-spacing:.08em;color:#fff;background:var(--live);border-radius:6px;padding:2px 8px}
 .live-tag .live-dot{background:#fff;animation:none}
 @media (prefers-reduced-motion:reduce){.live-dot{animation:none}}
+
+/* ---------- Farol "Ao vivo" (menu) ---------- */
+.farol{display:inline-flex;align-items:center;gap:8px;flex:none;margin-left:8px;background:rgba(255,255,255,.03);border:1px solid var(--line);color:var(--cream);border-radius:999px;padding:0 14px;min-height:40px;font:600 14px var(--sans);cursor:pointer;transition:border-color .2s,background .2s}
+.farol:hover{border-color:var(--gold-dim)}
+.farol-luz{width:11px;height:11px;border-radius:50%;background:#d0533f;box-shadow:0 0 8px rgba(208,83,63,.9)}
+.farol[data-cor=amarelo] .farol-luz{background:#f0c75e;box-shadow:0 0 10px rgba(240,199,94,.9);animation:farol-pisca .6s ease-in-out infinite alternate}
+.farol[data-cor=verde]{border-color:rgba(63,220,110,.5);background:rgba(63,220,110,.08)}
+.farol[data-cor=verde] .farol-luz{background:#3fdc6e;box-shadow:0 0 0 0 rgba(63,220,110,.6);animation:farol-verde 1.6s ease-out infinite}
+@keyframes farol-pisca{to{opacity:.35}}
+@keyframes farol-verde{0%{box-shadow:0 0 0 0 rgba(63,220,110,.7)}70%{box-shadow:0 0 0 8px rgba(63,220,110,0)}100%{box-shadow:0 0 0 0 rgba(63,220,110,0)}}
+@media (prefers-reduced-motion:reduce){.farol-luz{animation:none!important}}
+@media (max-width:1080px){.farol{margin-left:auto;order:1}.menu-btn{margin-left:8px;order:2}}
+@media (max-width:340px){.farol-txt{display:none}.farol{padding:0 12px}}
+.live-dlg{position:relative}

@@ -47,6 +47,48 @@ const conteudoNuvem = !nuvem ? Promise.resolve() : Promise.all([
 ]);
 const guarda = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
 
+/* ---------- Partidas e temporada do banco (importadas do Pro Clubs Tracker pela aba Estatísticas do painel) ----------
+   O banco manda; o data.js é a reserva. Os nomes vêm como PSN e viram o nome do elenco quando o "psn" bate;
+   quem ainda não está no elenco aparece como jogador novo. Com a lista de quem jogou, jogos, gols, assistências
+   e MVP do elenco são recalculados. As páginas desenham na hora com o data.js e redesenham quando o banco responde. */
+const aoAtualizarEstatisticas = [];
+function aplicaEstatisticas({ rows, temp }) {
+  if (temp) clube.temporada = { jogos: temp.jogos, v: temp.v, e: temp.e, d: temp.d, gp: temp.gp, gc: temp.gc, divisao: temp.divisao, sr: temp.sr };
+  if (!rows || !rows.length) return !!temp;
+  const porPsn = new Map(elenco.map(p => [String(p.psn || p.n).toLowerCase(), p]));
+  const jogador = psn => {
+    const k = String(psn).toLowerCase();
+    if (!porPsn.has(k)) { const p = { n: String(psn), p: "", o: 0, j: 0, g: 0, a: 0, mvp: 0, psn: String(psn), foto: "", ativo: true, novo: true }; elenco.push(p); porPsn.set(k, p); }
+    return porPsn.get(k);
+  };
+  const nome = psn => jogador(psn).n;
+  juntar(partidas, rows.map(r => ({
+    id: r.id, data: r.data, adv: r.adv, comp: r.comp, gp: r.gp, gc: r.gc, obs: r.obs || "",
+    gols: (r.gols || []).map(nome), assist: (r.assist || []).map(nome), mvp: r.mvp ? nome(r.mvp) : "",
+    jogadores: (r.jogadores || []).map(j => { const p = jogador(j.psn); if (p.novo && !p.p && j.pos) p.p = j.pos; return p.n; }),
+  })));
+  partidas.sort((a, b) => Date.parse(b.data) - Date.parse(a.data));
+  if (partidas.every(m => Array.isArray(m.jogadores))) { /* só recalcula quando toda partida tem a lista de quem jogou */
+    const por = new Map(elenco.map(p => [p.n, p]));
+    elenco.forEach(p => { p.j = p.g = p.a = p.mvp = 0; });
+    const soma = (n, k) => { const p = por.get(n); if (p) p[k]++; };
+    partidas.forEach(m => { new Set(m.jogadores).forEach(n => soma(n, "j")); m.gols.forEach(n => soma(n, "g")); m.assist.forEach(n => soma(n, "a")); if (m.mvp) soma(m.mvp, "mvp"); });
+  }
+  return true;
+}
+const estatisticasNuvem = (!nuvem || !["inicio", "partidas", "elenco", "videos", "admin"].includes(page)) ? Promise.resolve(false) : (async () => {
+  let dados = null;
+  try { const c = JSON.parse(sessionStorage.getItem("oxe_stats") || "null"); if (c && Date.now() - c.t < 120000) dados = c.dados; } catch (e) {}
+  if (!dados) {
+    const [rows, temp] = await comTempo(Promise.all([sbGet("partidas", "select=*&order=data.desc&limit=300"), sbGet("temporada", "select=*&limit=1")]), 7000);
+    dados = { rows, temp: temp[0] || null };
+    try { sessionStorage.setItem("oxe_stats", JSON.stringify({ t: Date.now(), dados })); } catch (e) {}
+  }
+  return aplicaEstatisticas(dados);
+})().catch(e => { console.warn("Estatísticas da nuvem indisponíveis:", e.message); return false; });
+/* chamado no fim do arquivo, depois que as páginas registraram como se redesenhar */
+const redesenhaComNuvem = () => estatisticasNuvem.then(mudou => { if (mudou) aoAtualizarEstatisticas.forEach(f => { try { f(); } catch (e) { console.error(e); } }); });
+
 /* ---------- Transmissões ao vivo (tabela "lives"; usado no site e no painel) ----------
    O banco guarda só identificadores; os endereços são montados aqui, sempre com encodeURIComponent. */
 const LIVE = {
@@ -90,6 +132,7 @@ $("#nav").innerHTML = `
     <a href="index.html" class="brand"><img src="assets/img/escudo-96.webp" alt="" width="40" height="40">${esc(clube.nome)}</a>
     <button class="menu-btn" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="menu-links">☰</button>
     <div class="links" id="menu-links">${PAGINAS.map(([h, k, l]) => `<a href="${h}"${k === page ? ' class="active" aria-current="page"' : ""}>${l}</a>`).join("")}</div>
+    <button class="farol" id="farol" type="button" data-cor="vermelho" aria-haspopup="dialog"><span class="farol-luz" aria-hidden="true"></span><span class="farol-txt">Ao vivo</span></button>
     <a href="recrutamento.html" class="btn btn-gold btn-sm">Jogar no OXE</a>
   </div>`;
 const menuBtn = $(".menu-btn");
@@ -111,22 +154,82 @@ $("#footer").innerHTML = `
 $$("[data-discord]").forEach(a => { if (clube.discord) { a.href = clube.discord; a.target = "_blank"; a.rel = "noopener"; } else a.hidden = true; });
 $$("[data-nome]").forEach(el => el.textContent = clube.nome);
 
-/* Selo "AO VIVO": uma consulta pequena (3 s no máximo, guardada 60 s na aba) e, se alguém estiver no ar,
-   aparece um item no menu e, na página inicial, uma faixa. Se a consulta falhar, nada aparece e nada quebra. */
-(async () => {
-  if (!nuvem || page === "admin") return;
-  let ativos = null;
-  try { const c = JSON.parse(sessionStorage.getItem("oxe_live") || "null"); if (c && Date.now() - c.t < 60000) ativos = c.ativos; } catch (e) {}
-  if (!ativos) {
+/* ---------- Farol "Ao vivo" ----------
+   vermelho = ninguém confirmado no ar (toque para verificar) · amarelo = verificando · verde = alguém ao vivo (toque para assistir).
+   Quem confere é a função checa-live do Supabase (as chaves do YouTube e da Twitch ficam lá, nunca aqui).
+   O resultado vai para o banco: quem entra depois já vê a cor certa sem clicar. Quando o prazo de uma live vence
+   (4 h, depois de 2 em 2 h), a primeira visita pede um novo teste sozinha. A lista fica guardada 60 s na aba. */
+const FAROL = (() => {
+  const botao = $("#farol"), FUNCAO = `${SB.url}/functions/v1/checa-live`;
+  let lista = [], ocupado = false, falhou = false, dlg = null;
+  const noAr = () => lista.filter(LIVE.noAr);
+  const vencidos = () => lista.filter(l => l.ate && !LIVE.noAr(l));
+  const cor = c => {
+    botao.dataset.cor = c;
+    const t = c === "verde" ? `Ao vivo agora: ${noAr().map(l => l.jogador).join(", ")}. Toque para assistir.` : c === "amarelo" ? "Verificando se tem live…" : "Ninguém ao vivo. Toque para verificar.";
+    botao.title = t; botao.setAttribute("aria-label", t);
+  };
+  const salva = () => { try { sessionStorage.setItem("oxe_lives", JSON.stringify({ t: Date.now(), lista })); } catch (e) {} };
+  const faixa = () => {
+    $$(".live-faixa").forEach(x => x.parentNode.removeChild(x));
+    const a = noAr(); if (page !== "inicio" || !a.length) return;
+    $("#nav").insertAdjacentHTML("afterend", `<button type="button" class="live-faixa"><span class="live-dot" aria-hidden="true"></span><b>AO VIVO AGORA</b><span>${esc(a.map(l => l.jogador).join(", "))}${a[0].titulo ? " · " + esc(a[0].titulo) : ""}</span><span class="live-ver">Assistir ›</span></button>`);
+    $(".live-faixa").onclick = () => janela();
+  };
+  const atualiza = () => { cor(noAr().length ? "verde" : "vermelho"); faixa(); document.dispatchEvent(new CustomEvent("oxe-live", { detail: lista })); };
+  const carrega = async () => {
+    try { const c = JSON.parse(sessionStorage.getItem("oxe_lives") || "null"); if (c && Date.now() - c.t < 60000) return c.lista; } catch (e) {}
+    const l = await comTempo(sbGet("lives", "select=id,jogador,plataforma,canal,video,titulo,ate,checado_em&order=jogador.asc"), 5000);
+    lista = l; salva(); return l;
+  };
+  const testa = async motivo => {
+    ocupado = true; falhou = false; cor("amarelo");
     try {
-      ativos = await comTempo(sbGet("lives", `select=jogador,plataforma,titulo&ate=gt.${encodeURIComponent(new Date().toISOString())}&order=ate.desc`), 3000);
-      try { sessionStorage.setItem("oxe_live", JSON.stringify({ t: Date.now(), ativos })); } catch (e) {}
-    } catch (e) { return; }
-  }
-  if (!ativos.length) return;
-  const quem = ativos.map(l => l.jogador).join(", ");
-  $("#menu-links").insertAdjacentHTML("afterbegin", `<a href="aovivo.html" class="live-link${page === "aovivo" ? " active" : ""}"${page === "aovivo" ? ' aria-current="page"' : ""}><span class="live-dot" aria-hidden="true"></span>Ao vivo</a>`);
-  if (page === "inicio") $("#nav").insertAdjacentHTML("afterend", `<a class="live-faixa" href="aovivo.html"><span class="live-dot" aria-hidden="true"></span><b>AO VIVO AGORA</b><span>${esc(quem)}${ativos[0].titulo ? " · " + esc(ativos[0].titulo) : ""}</span><span class="live-ver">Assistir ›</span></a>`);
+      const r = await comTempo(fetch(FUNCAO, { method: "POST", headers: sbHeaders({ "Content-Type": "application/json" }), body: JSON.stringify({ motivo }) })
+        .then(r => r.ok ? r.json() : Promise.reject(new Error("checa-live " + r.status))), 15000);
+      if (Array.isArray(r.lives)) { lista = r.lives; salva(); }
+      if (r.avisos && r.avisos.length) console.warn("Checagem da live:", r.avisos.join("; "));
+    } catch (e) { falhou = true; console.warn("Checagem da live indisponível:", e.message); }
+    finally { ocupado = false; atualiza(); }
+  };
+  const player = l => `<iframe src="${esc(LIVE.player(l))}" title="Transmissão de ${esc(l.jogador)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
+  /* janela: com live, o player (o primeiro ao vivo, e botões para trocar se houver mais de um); sem live, os canais */
+  const janela = id => {
+    if (!dlg) {
+      dlg = document.createElement("dialog"); dlg.className = "live-dlg"; dlg.setAttribute("aria-label", "Ao vivo");
+      document.body.appendChild(dlg);
+      dlg.addEventListener("close", () => { dlg.innerHTML = ""; });
+      dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
+    }
+    const a = noAr(), fechar = `<button class="vclose" type="button" data-fechar aria-label="Fechar">✕</button>`;
+    if (a.length) {
+      const l = a.find(x => x.id === id) || a[0];
+      dlg.innerHTML = fechar + `<div class="vstage">${player(l)}</div><div class="vinfo">
+        <span class="live-tag"><span class="live-dot" aria-hidden="true"></span>AO VIVO</span> <span class="tag-comp">${esc(LIVE.nome[l.plataforma] || l.plataforma)}</span>
+        <h3 style="margin:10px 0 4px">${esc(l.jogador)}</h3>${l.titulo ? `<p class="by" style="margin:0 0 10px">${esc(l.titulo)}</p>` : ""}
+        ${a.length > 1 ? `<div class="factions" style="margin-top:8px">${a.filter(x => x.id !== l.id).map(x => `<button class="btn btn-ghost btn-sm" type="button" data-trocar="${esc(x.id)}">Ver ${esc(x.jogador)}</button>`).join("")}</div>` : ""}
+        <p style="margin:10px 0 0"><a href="${esc(LIVE.pagina(l))}" target="_blank" rel="noopener">Abrir na ${esc(LIVE.nome[l.plataforma] || "plataforma")} ›</a></p></div>`;
+      dlg.querySelectorAll("[data-trocar]").forEach(b => b.onclick = () => janela(b.dataset.trocar));
+    } else {
+      dlg.innerHTML = fechar + `<div class="vinfo" style="padding:28px 24px">
+        <h3 style="margin:0 0 8px">${falhou ? "Não deu para verificar agora" : "Ninguém ao vivo agora"}</h3>
+        <p class="sec-sub" style="margin:0 0 14px">${falhou ? "Tente de novo em instantes." : "Quando um jogador do EC OXE entrar ao vivo, o farol fica verde."}</p>
+        ${lista.length ? `<div class="factions" style="margin-top:0">${lista.map(l => `<a class="btn btn-ghost btn-sm" href="${esc(LIVE.pagina(l))}" target="_blank" rel="noopener">${esc(l.jogador)} · ${esc(LIVE.nome[l.plataforma] || l.plataforma)}</a>`).join("")}</div>` : ""}
+        <p style="margin:16px 0 0"><a href="aovivo.html">Ver a página Ao vivo ›</a></p></div>`;
+    }
+    dlg.querySelector("[data-fechar]").onclick = () => dlg.close();
+    if (!dlg.open) dlg.showModal();
+  };
+  botao.onclick = async () => {
+    if (ocupado) return;
+    if (!noAr().length) await testa("clique");
+    janela();
+  };
+  if (!nuvem) { botao.hidden = true; setTimeout(atualiza); return { testa: () => Promise.resolve(), janela, ocupado: () => false }; }
+  cor("vermelho");
+  carrega().then(l => { lista = l; atualiza(); if (vencidos().length) testa("reteste"); })
+    .catch(e => { console.warn("Transmissões indisponíveis:", e.message); atualiza(); });
+  return { testa: m => ocupado ? Promise.resolve() : testa(m), janela, ocupado: () => ocupado };
 })();
 
 /* ---------- Números calculados a partir das partidas ---------- */
@@ -178,6 +281,7 @@ function listaPartidas(el, lista) {
       <div><span>⚽ Gols</span><b>${agrupa(m.gols || [])}</b></div>
       <div><span>🅰️ Assistências</span><b>${agrupa(m.assist || [])}</b></div>
       <div><span>⭐ Melhor em campo</span><b>${esc(m.mvp || "-")}</b></div>
+      ${m.jogadores && m.jogadores.length ? `<div class="obs"><span>👥 Jogaram</span><b>${m.jogadores.map(esc).join(", ")}</b></div>` : ""}
       ${m.obs ? `<div class="obs"><span>ℹ️ Obs.</span><b>${esc(m.obs)}</b></div>` : ""}
     </div>`);
     row.classList.add("open"); head.setAttribute("aria-expanded", "true");
@@ -268,18 +372,24 @@ if (page === "inicio") {
   $("#slogan").innerHTML = esc(clube.slogan).replace(/^(\S+)/, "<em>$1</em>");
   $("#frase").textContent = clube.frase;
   $("#pill").textContent = `Pro Clubs · ${clube.jogo} · ${clube.plataforma}`;
-  faixaNumeros($("#stats"));
-  sequencia($("#form"), partidas);
-  listaPartidas($("#matches"), partidas.slice(0, 5));
-  ranking($("#leaders"));
-  $("#cards").innerHTML = elenco.filter(p => p.ativo !== false).sort((a, b) => b.j - a.j).slice(0, 4).map(carta).join("");
+  const desenhaInicio = () => {
+    faixaNumeros($("#stats"));
+    sequencia($("#form"), partidas);
+    listaPartidas($("#matches"), partidas.slice(0, 5));
+    ranking($("#leaders"));
+    $("#cards").innerHTML = elenco.filter(p => p.ativo !== false).sort((a, b) => b.j - a.j).slice(0, 4).map(carta).join("");
+  };
+  desenhaInicio(); aoAtualizarEstatisticas.push(desenhaInicio);
 }
 
 if (page === "partidas") {
-  const gp = golsPro(), gc = golsContra();
-  $("#resbar").innerHTML = [[conta("V"), "Vitórias"], [conta("E"), "Empates"], [conta("D"), "Derrotas"], [gp + " x " + gc, "Gols pró x contra"]]
-    .map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join("");
-  sequencia($("#form"), partidas);
+  const resumo = () => {
+    const gp = golsPro(), gc = golsContra();
+    $("#resbar").innerHTML = [[conta("V"), "Vitórias"], [conta("E"), "Empates"], [conta("D"), "Derrotas"], [gp + " x " + gc, "Gols pró x contra"]]
+      .map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join("");
+    sequencia($("#form"), partidas);
+  };
+  resumo();
   let f = "T";
   const desenha = () => {
     const lista = f === "T" ? partidas : partidas.filter(m => res(m) === f);
@@ -288,7 +398,7 @@ if (page === "partidas") {
     $$(".fbtn").forEach(b => b.classList.toggle("on", b.dataset.f === f));
   };
   $$(".fbtn").forEach(b => b.onclick = () => { f = b.dataset.f; desenha(); });
-  desenha();
+  desenha(); aoAtualizarEstatisticas.push(() => { resumo(); desenha(); });
 }
 
 if (page === "elenco") {
@@ -307,7 +417,7 @@ if (page === "elenco") {
   $("#q").oninput = e => { q = e.target.value.trim().toLowerCase(); desenha(); };
   $("#sort").onchange = e => { ordem = e.target.value; desenha(); };
   $("#inact").onclick = () => { inativos = !inativos; desenha(); };
-  desenha();
+  desenha(); aoAtualizarEstatisticas.push(desenha);
 }
 
 if (page === "videos") conteudoNuvem.then(() => {
@@ -503,7 +613,13 @@ if (page === "aovivo") {
       card.querySelector(".live-palco").innerHTML = `<iframe src="${esc(LIVE.player(l))}" title="Transmissão de ${esc(l.jogador)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
     };
   };
-  if (!nuvem) mostra([]);
-  else comTempo(sbGet("lives", "select=id,jogador,plataforma,canal,video,titulo,ate&order=jogador.asc"), 7000).then(mostra)
-    .catch(e => { console.warn("Transmissões indisponíveis:", e.message); caixa.innerHTML = `<div class="empty-state">Não foi possível carregar as transmissões agora. Recarregue a página em instantes.</div>`; });
+  /* os dados vêm do farol (menu): carregados uma vez e atualizados depois de cada verificação */
+  document.addEventListener("oxe-live", e => mostra(e.detail));
+  if (nuvem) {
+    caixa.insertAdjacentHTML("beforebegin", `<div class="toolbar"><button class="btn btn-ghost btn-sm" type="button" id="verificar">Verificar agora</button><span class="count">O farol do menu fica verde quando alguém está ao vivo.</span></div>`);
+    $("#verificar").onclick = async e => { const b = e.currentTarget; b.disabled = true; await FAROL.testa("clique"); b.disabled = false; };
+  }
 }
+
+/* Partidas e temporada do banco: redesenha Início, Partidas e Elenco quando chegarem. */
+redesenhaComNuvem();
