@@ -2,7 +2,7 @@
 -- EC OXE: banco do site no Supabase.
 -- Instalação NOVA: rodar este arquivo uma vez no SQL Editor. Pode rodar de novo sem quebrar nada.
 -- Banco que já existia antes de 17/11/2026: NÃO use este arquivo para atualizar.
--- Rode, na ordem, os arquivos de supabase/migrations/ (01, 02, 03, 04). Eles têm o mesmo conteúdo
+-- Rode, na ordem, os arquivos de supabase/migrations/ (01 a 06). Eles têm o mesmo conteúdo
 -- das seções "Links só http(s)", "Limite de envios", "Permissões" e "Regras" abaixo.
 -- (Este arquivo e as migrações precisam andar juntos: mudou um, atualize o outro.)
 --
@@ -19,9 +19,15 @@ create table if not exists public.admins (
 );
 alter table public.admins enable row level security;
 
-create or replace function public.is_admin()
+-- A função fica no schema "private", que a API não expõe (o Security Advisor avisa se ela ficar em "public").
+-- As regras (RLS) a chamam, então anon e authenticated precisam de USAGE no schema e EXECUTE na função.
+create schema if not exists private;
+grant usage on schema private to anon, authenticated;
+
+create or replace function private.is_admin()
 returns boolean language sql stable security definer set search_path = ''
 as $$ select exists (select 1 from public.admins where user_id = (select auth.uid())) $$;
+revoke all on function private.is_admin() from public;
 
 drop policy if exists "admin ve a si mesmo" on public.admins;
 create policy "admin ve a si mesmo" on public.admins for select to authenticated using (user_id = (select auth.uid()));
@@ -183,7 +189,7 @@ alter view public.amistosos_publico set (security_invoker = true);
 
 -- ---------- Permissões da API (o projeto não expõe tabelas sozinho) ----------
 grant usage on schema public to anon, authenticated;
-grant execute on function public.is_admin() to anon, authenticated;
+grant execute on function private.is_admin() to anon, authenticated;
 grant select on public.news, public.videos to anon, authenticated;
 grant select, insert, update, delete on public.news, public.videos to authenticated;
 grant select on public.admins to authenticated;
@@ -206,7 +212,7 @@ drop policy if exists "envio publico" on public.candidaturas;
 create policy "envio publico" on public.candidaturas for insert to anon, authenticated
   with check (status = 'pendente' and nota_admin is null);
 drop policy if exists "admin gerencia" on public.candidaturas;
-create policy "admin gerencia" on public.candidaturas for all to authenticated using (public.is_admin()) with check (public.is_admin());
+create policy "admin gerencia" on public.candidaturas for all to authenticated using (private.is_admin()) with check (private.is_admin());
 
 drop policy if exists "envio publico" on public.amistosos;
 create policy "envio publico" on public.amistosos for insert to anon, authenticated
@@ -215,17 +221,17 @@ drop policy if exists "agenda publica" on public.amistosos;
 create policy "agenda publica" on public.amistosos for select to anon
   using (status in ('confirmado','realizado'));
 drop policy if exists "admin gerencia" on public.amistosos;
-create policy "admin gerencia" on public.amistosos for all to authenticated using (public.is_admin()) with check (public.is_admin());
+create policy "admin gerencia" on public.amistosos for all to authenticated using (private.is_admin()) with check (private.is_admin());
 
 drop policy if exists "leitura publica" on public.news;
-create policy "leitura publica" on public.news for select to anon, authenticated using (publicado or public.is_admin());
+create policy "leitura publica" on public.news for select to anon, authenticated using (publicado or private.is_admin());
 drop policy if exists "admin gerencia" on public.news;
-create policy "admin gerencia" on public.news for all to authenticated using (public.is_admin()) with check (public.is_admin());
+create policy "admin gerencia" on public.news for all to authenticated using (private.is_admin()) with check (private.is_admin());
 
 drop policy if exists "leitura publica" on public.videos;
-create policy "leitura publica" on public.videos for select to anon, authenticated using (publicado or public.is_admin());
+create policy "leitura publica" on public.videos for select to anon, authenticated using (publicado or private.is_admin());
 drop policy if exists "admin gerencia" on public.videos;
-create policy "admin gerencia" on public.videos for all to authenticated using (public.is_admin()) with check (public.is_admin());
+create policy "admin gerencia" on public.videos for all to authenticated using (private.is_admin()) with check (private.is_admin());
 
 -- ---------- Fotos e vídeos enviados pelo painel ----------
 -- Pasta pública "media" (até 50 MB por arquivo; só imagens e vídeos). Só admin envia, troca ou apaga.
@@ -234,8 +240,8 @@ values ('media', 'media', true, 52428800, array['image/jpeg','image/png','image/
 on conflict (id) do update set public = excluded.public, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
 
 drop policy if exists "admin envia media" on storage.objects;
-create policy "admin envia media" on storage.objects for insert to authenticated with check (bucket_id = 'media' and public.is_admin());
+create policy "admin envia media" on storage.objects for insert to authenticated with check (bucket_id = 'media' and private.is_admin());
 drop policy if exists "admin altera media" on storage.objects;
-create policy "admin altera media" on storage.objects for update to authenticated using (bucket_id = 'media' and public.is_admin());
+create policy "admin altera media" on storage.objects for update to authenticated using (bucket_id = 'media' and private.is_admin());
 drop policy if exists "admin apaga media" on storage.objects;
-create policy "admin apaga media" on storage.objects for delete to authenticated using (bucket_id = 'media' and public.is_admin());
+create policy "admin apaga media" on storage.objects for delete to authenticated using (bucket_id = 'media' and private.is_admin());
