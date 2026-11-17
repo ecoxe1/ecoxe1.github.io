@@ -13,6 +13,25 @@ const dataCurta = s => { const d = dia(s); return `${pad(d.getDate())}/${pad(d.g
 const hojeISO = (() => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; })();
 const SB = window.SUPABASE || {}, nuvem = !!(SB.url && SB.key);
 const sbHeaders = extra => Object.assign({ apikey: SB.key }, SB.key && SB.key.startsWith("eyJ") ? { Authorization: "Bearer " + SB.key } : {}, extra);
+const sbGet = (tabela, consulta) => fetch(`${SB.url}/rest/v1/${tabela}?${consulta}`, { headers: sbHeaders() }).then(r => r.ok ? r.json() : Promise.reject(new Error(tabela + ": " + r.status)));
+/* Texto do painel -> blocos da notícia: parágrafos separados por linha em branco, "## " vira subtítulo, "![legenda](url)" vira foto. */
+const textoParaBlocos = t => String(t || "").split(/\n\s*\n/).map(s => s.trim()).filter(Boolean).map(s => {
+  const img = s.match(/^!\[(.*?)\]\((\S+?)\)$/);
+  if (img) return { img: img[2], legenda: img[1] };
+  if (s.startsWith("## ")) return { t: s.slice(3).trim() };
+  return s.replace(/\n/g, " ");
+});
+/* Junta o que veio do painel (nuvem) com o que está em data.js; a nuvem vale quando o id é igual. */
+const juntar = (lista, linhas) => { const ids = new Set(linhas.map(x => x.id)); const resto = lista.filter(x => !ids.has(x.id)); lista.length = 0; lista.push(...linhas, ...resto); };
+const comTempo = (p, ms) => Promise.race([p, new Promise((_, n) => setTimeout(() => n(new Error("tempo esgotado")), ms))]);
+const conteudoNuvem = !nuvem ? Promise.resolve() : Promise.all([
+  page === "noticias" ? comTempo(sbGet("news", "select=*&order=data.desc,created_at.desc"), 7000).then(rows => juntar(noticias, rows.map(r => ({
+    id: r.id, chapeu: r.chapeu, titulo: r.titulo, resumo: r.resumo, autor: r.autor, data: r.data, capa: r.capa, corpo: textoParaBlocos(r.corpo) }))))
+    .catch(e => console.warn("Notícias da nuvem indisponíveis:", e.message)) : null,
+  page === "videos" ? comTempo(sbGet("videos", "select=*&order=data.desc,created_at.desc"), 7000).then(rows => juntar(videos, rows.map(r => ({
+    id: r.id, titulo: r.titulo, tipo: r.tipo, data: r.data, src: r.src, capa: r.capa, desc: r.descr, partida: r.partida }))))
+    .catch(e => console.warn("Vídeos da nuvem indisponíveis:", e.message)) : null,
+]);
 const guarda = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
 
 /* Texto das notícias: **negrito**, *itálico*, [texto](https://link). O HTML é escapado antes. */
@@ -207,12 +226,12 @@ if (page === "elenco") {
   desenha();
 }
 
-if (page === "videos") {
+if (page === "videos") conteudoNuvem.then(() => {
   const fonte = v => {
     const i = v.src.indexOf(":"), tipo = v.src.slice(0, i), val = v.src.slice(i + 1);
     const capa = v.capa ? (/^https?:/.test(v.capa) ? v.capa : "assets/videos/" + v.capa) : "";
     if (tipo === "youtube") return { tipo, embed: `https://www.youtube-nocookie.com/embed/${encodeURIComponent(val)}?autoplay=1&rel=0`, capa: capa || `https://i.ytimg.com/vi/${encodeURIComponent(val)}/hqdefault.jpg` };
-    if (tipo === "arquivo") return { tipo, arquivo: "assets/videos/" + val, capa };
+    if (tipo === "arquivo") return { tipo, arquivo: /^https?:/.test(val) ? val : "assets/videos/" + val, capa };
     return { tipo: "link", url: val, capa };
   };
   const ord = videos.slice().sort((a, b) => b.data.localeCompare(a.data));
@@ -246,9 +265,9 @@ if (page === "videos") {
     modal.showModal();
   };
   desenha();
-}
+});
 
-if (page === "noticias") {
+if (page === "noticias") conteudoNuvem.then(() => {
   const arts = noticias.slice().sort((a, b) => b.data.localeCompare(a.data));
   const capa = a => a.capa
     ? `<div class="pimg"><img src="${esc(/^https?:/.test(a.capa) ? a.capa : "assets/news/" + a.capa)}" alt="" loading="lazy"></div>`
@@ -257,7 +276,7 @@ if (page === "noticias") {
     <div class="txt"><div class="kick">${esc(a.chapeu)}</div><h2>${esc(a.titulo)}</h2><p>${esc(a.resumo)}</p><div class="by">${esc(a.autor)} · ${dataLonga(a.data)}</div></div></a>`;
   const blocos = a => a.corpo.map(b => typeof b === "string" ? `<p>${fmt(b)}</p>`
     : b.t ? `<h3>${esc(b.t)}</h3>`
-    : `<figure><img src="${esc("assets/news/" + b.img)}" alt="${esc(b.legenda || "")}" loading="lazy">${b.legenda ? `<figcaption>${esc(b.legenda)}</figcaption>` : ""}</figure>`).join("");
+    : `<figure><img src="${esc(/^https?:/.test(b.img) ? b.img : "assets/news/" + b.img)}" alt="${esc(b.legenda || "")}" loading="lazy">${b.legenda ? `<figcaption>${esc(b.legenda)}</figcaption>` : ""}</figure>`).join("");
   const rota = () => {
     const id = decodeURIComponent(location.hash.replace(/^#\/?/, ""));
     const a = id && arts.find(x => x.id === id);
@@ -277,7 +296,7 @@ if (page === "noticias") {
   };
   window.addEventListener("hashchange", rota);
   rota();
-}
+});
 
 if (page === "recrutamento") {
   $("#posLine").textContent = "Posições procuradas: " + recrutamento.posicoes;
@@ -306,16 +325,23 @@ if (page === "amistosos") {
   $("#hours").textContent = amistosos.horarios;
   const f = $("#amForm");
   f.data.min = hojeISO; f.data2.min = hojeISO;
-  const linha = x => { const d = dia(x.data); return `<div class="ag-row"><div class="ag-date"><b>${pad(d.getDate())}/${pad(d.getMonth() + 1)}</b><span>${SEMANA[d.getDay()].slice(0, 3)}</span></div>
-    <div class="ag-info"><b>${esc(clube.nome)} x ${esc(x.time)}</b><small>${esc(String(x.hora).slice(0, 5))}${x.plataforma ? " · " + esc(x.plataforma) : ""}</small></div></div>`; };
+  const linha = x => {
+    const d = dia(x.data), feito = x.status === "realizado", placar = feito && x.placar_nos != null && x.placar_eles != null;
+    const r = placar ? (x.placar_nos > x.placar_eles ? "V" : x.placar_nos < x.placar_eles ? "D" : "E") : "";
+    return `<div class="ag-row"><div class="ag-date"><b>${pad(d.getDate())}/${pad(d.getMonth() + 1)}</b><span>${SEMANA[d.getDay()].slice(0, 3)}</span></div>
+    <div class="ag-info"><b>${esc(clube.nome)} x ${esc(x.time)}</b><small>${esc(String(x.hora).slice(0, 5))}${x.plataforma ? " · " + esc(x.plataforma) : ""}${feito && !placar ? " · realizado" : ""}</small></div>
+    ${placar ? `<span class="chip ${r}" style="margin-left:auto;width:auto;padding:0 8px" title="Placar">${x.placar_nos} x ${x.placar_eles}</span>` : ""}</div>`;
+  };
   const mostraAgenda = lista => {
-    const prox = lista.filter(x => x.data >= hojeISO).sort((a, b) => (a.data + a.hora).localeCompare(b.data + b.hora));
-    $("#agenda").innerHTML = prox.length ? prox.map(linha).join("") : `<p class="sec-sub" style="margin:0">Nenhum amistoso marcado no momento. Que tal ser o próximo?</p>`;
+    const prox = lista.filter(x => x.status !== "realizado" && x.data >= hojeISO).sort((a, b) => (a.data + a.hora).localeCompare(b.data + b.hora));
+    const feitos = lista.filter(x => x.status === "realizado").sort((a, b) => (b.data + b.hora).localeCompare(a.data + a.hora)).slice(0, 5);
+    $("#agenda").innerHTML = (prox.length ? prox.map(linha).join("") : `<p class="sec-sub" style="margin:0">Nenhum amistoso marcado no momento. Que tal ser o próximo?</p>`)
+      + (feitos.length ? `<div class="eyebrow" style="margin:18px 0 4px">Já jogados</div>` + feitos.map(linha).join("") : "");
   };
   mostraAgenda(amistosos.agenda);
   /* Com o Supabase ligado, a agenda vem da view pública (só amistosos confirmados, sem contatos). */
-  if (nuvem) fetch(`${SB.url}/rest/v1/amistosos_publico?select=*&order=data.asc,hora.asc`, { headers: sbHeaders() })
-    .then(r => r.ok ? r.json() : Promise.reject(r.status)).then(rows => mostraAgenda(rows.concat(amistosos.agenda))).catch(() => {});
+  if (nuvem) sbGet("amistosos_publico", "select=*&order=data.asc,hora.asc")
+    .then(rows => mostraAgenda(rows.concat(amistosos.agenda))).catch(e => console.warn("Agenda da nuvem indisponível:", e.message));
 
   formulario({
     form: f, msg: $("#amMsg"), botao: $("#amSend"), tabela: "amistosos", chaveEspera: "oxe_am", textoBotao: "Enviar pedido",
