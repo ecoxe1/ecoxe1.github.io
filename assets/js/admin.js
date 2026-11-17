@@ -85,13 +85,13 @@
       <div class="adm-top"><span class="by">Logado como <b>${esc(session.user.email)}</b></span><button class="btn btn-ghost btn-sm" id="sair" type="button">Sair</button></div>
       <div class="toolbar adm-tabs" role="tablist">
         <button class="fbtn" data-aba="cand">Candidaturas</button><button class="fbtn" data-aba="amis">Amistosos</button>
-        <button class="fbtn" data-aba="news">Notícias</button><button class="fbtn" data-aba="vid">Vídeos</button>
+        <button class="fbtn" data-aba="news">Notícias</button><button class="fbtn" data-aba="vid">Vídeos</button><button class="fbtn" data-aba="live">Ao vivo</button>
       </div><div id="aba"></div>`;
     q("#sair").onclick = async () => { await sb.auth.signOut({ scope: "local" }); telaLogin(); }; /* só este aparelho */
     qa("[data-aba]").forEach(b => b.onclick = () => abre(b.dataset.aba));
     abre(guarda.get("oxe_aba") || "cand");
   }
-  const ABAS = { cand: abaCandidaturas, amis: abaAmistosos, news: abaNoticias, vid: abaVideos };
+  const ABAS = { cand: abaCandidaturas, amis: abaAmistosos, news: abaNoticias, vid: abaVideos, live: abaLives };
   function abre(k) {
     if (!ABAS[k]) k = "cand";
     guarda.set("oxe_aba", k);
@@ -368,6 +368,87 @@
       if (error) return falhou(error, "Erro ao apagar: ");
       if (x) apagaArquivos([x.capa, x.src]);
       diga("Vídeo apagado."); abaVideos();
+    });
+  }
+
+  /* ---------- Ao vivo ---------- */
+  /* Cada canal é uma linha. "Entrar ao vivo" liga por 4 horas; depois disso o site volta a mostrar offline sozinho,
+     mesmo que ninguém lembre de desligar. "+2h" estica (até 12 h a partir de agora); "Encerrar" desliga na hora. */
+  const H = 3600 * 1000, MAX_H = 12;
+  async function abaLives(editando) {
+    const valendo = marca();
+    const { data, error } = await sb.from("lives").select("*").order("jogador", { ascending: true });
+    if (!valendo()) return;
+    if (error) throw error;
+    const l = editando ? data.find(x => x.id === editando) : null;
+    const linkCanal = x => x.plataforma === "youtube" ? `https://www.youtube.com/channel/${x.canal}` : x.plataforma === "twitch" ? `https://www.twitch.tv/${x.canal}` : `https://kick.com/${x.canal}`;
+    const ate = x => { const b = emBrasilia(new Date(x.ate)); return `${b.iso.slice(8, 10)}/${b.iso.slice(5, 7)} às ${b.hora}`; };
+    q("#aba").innerHTML = `
+      <form class="panel" id="lform" novalidate>
+        <h3>${l ? "Editar canal" : "Cadastrar canal"}</h3>
+        <p class="sec-sub" style="margin:0 0 16px">Cadastre o canal uma vez. Quando o jogador entrar ao vivo, clique em <b>Entrar ao vivo</b> aqui embaixo: o selo "AO VIVO" aparece no site por 4 horas.</p>
+        <div class="fgrid">
+          <div><label>Jogador *</label><input name="jogador" maxlength="40" required value="${esc(l?.jogador || "")}"></div>
+          <div><label>Link do canal * <small>(YouTube: youtube.com/channel/UC… · Twitch: twitch.tv/nome · Kick: kick.com/nome)</small></label>
+            <input name="canal" required value="${l ? esc(linkCanal(l)) : ""}" placeholder="https://"></div>
+        </div>
+        <div class="factions"><button class="btn btn-gold" type="submit">${l ? "Salvar alterações" : "Cadastrar canal"}</button>${l ? `<button class="btn btn-ghost" type="button" id="lcancel">Cancelar edição</button>` : ""}</div>
+      </form>
+      <h3 style="margin-top:32px">Canais</h3>
+      ${data.length ? data.map(x => { const noAr = LIVE.noAr(x); return `<div class="panel adm-row" data-id="${esc(x.id)}">
+        <div><b>${esc(x.jogador)}</b><small class="by"> · ${esc(LIVE.nome[x.plataforma] || x.plataforma)} · ${link(LIVE.pagina(x), "ver canal")}</small><br>
+          ${noAr ? `<span class="adm-badge confirmado">ao vivo até ${ate(x)}</span>${x.titulo ? ` <small class="by">${esc(x.titulo)}</small>` : ""}` : `<span class="adm-badge">offline</span>`}</div>
+        <div class="factions" style="margin:0">${noAr
+          ? `<button class="btn btn-ghost btn-sm" data-mais>+2h</button><button class="btn btn-gold btn-sm" data-encerrar>Encerrar</button>`
+          : `<button class="btn btn-gold btn-sm" data-ligar>Entrar ao vivo</button>`}
+          <button class="btn btn-ghost btn-sm" data-ed>Editar</button><button class="btn btn-ghost btn-sm" data-del>Apagar</button></div></div>`; }).join("")
+        : `<div class="empty-state">Nenhum canal cadastrado ainda.</div>`}`;
+    const f = q("#lform");
+    q("#lcancel") && (q("#lcancel").onclick = () => abaLives());
+    f.onsubmit = async e => {
+      e.preventDefault();
+      const jogador = f.jogador.value.trim(), c = LIVE.canalDe(f.canal.value);
+      if (jogador.length < 2) return diga("Coloque o nome do jogador.", false);
+      if (c.erro) return diga(c.erro, false);
+      const dados = { jogador, plataforma: c.plataforma, canal: c.canal };
+      if (l && l.plataforma !== c.plataforma) dados.video = null; /* trocou de plataforma: o vídeo antigo não serve mais */
+      const btn = f.querySelector("[type=submit]"); btn.disabled = true;
+      const { error } = l ? await sb.from("lives").update(dados).eq("id", l.id) : await sb.from("lives").insert(dados);
+      btn.disabled = false;
+      if (error) return falhou(error, error.code === "23505" ? "Esse canal já está cadastrado. " : "Erro ao salvar: ");
+      diga(l ? "Canal atualizado." : "Canal cadastrado."); abaLives();
+    };
+    const muda = async (id, dados, msg) => {
+      const { error } = await sb.from("lives").update(dados).eq("id", id);
+      if (error) return falhou(error, "Erro: ");
+      diga(msg); abaLives();
+    };
+    qa(".adm-row[data-id]").forEach(row => {
+      const x = data.find(d => d.id === row.dataset.id); if (!x) return;
+      const b = s => row.querySelector(s);
+      b("[data-ed]").onclick = () => { abaLives(x.id); window.scrollTo({ top: 0, behavior: suave() }); };
+      b("[data-del]").onclick = async () => {
+        if (!await pergunta({ titulo: `Apagar o canal de ${x.jogador}?`, texto: "Ele some da página Ao vivo. Dá para cadastrar de novo depois.", ok: "Apagar", perigo: true })) return;
+        const { error } = await sb.from("lives").delete().eq("id", x.id);
+        if (error) return falhou(error, "Erro ao apagar: ");
+        diga("Canal apagado."); abaLives();
+      };
+      if (b("[data-ligar]")) b("[data-ligar]").onclick = async () => {
+        const titulo = await pergunta({ titulo: `${x.jogador} entrou ao vivo`, texto: "O selo AO VIVO fica no site por 4 horas (dá para esticar ou encerrar antes).", campo: "Título da live (opcional, até 80 letras)", ok: "Entrar ao vivo" });
+        if (titulo === null) return;
+        let video = null;
+        if (x.plataforma === "youtube") {
+          const lk = await pergunta({ titulo: "Link da live no YouTube", texto: "Opcional. Com o link, o player abre direto nessa live; sem ele, o site usa o player do canal.", campo: "Link da live (youtu.be/… ou youtube.com/live/…)", ok: "Continuar" });
+          if (lk === null) return;
+          if (lk && !(video = LIVE.videoDe(lk))) return diga("Link da live não reconhecido. Tente de novo ou deixe em branco.", false);
+        }
+        muda(x.id, { ate: new Date(Date.now() + 4 * H).toISOString(), titulo: titulo.slice(0, 80), video }, `${x.jogador} está ao vivo no site.`);
+      };
+      if (b("[data-mais]")) b("[data-mais]").onclick = () => {
+        const novo = Math.min(Math.max(new Date(x.ate).getTime(), Date.now()) + 2 * H, Date.now() + MAX_H * H);
+        muda(x.id, { ate: new Date(novo).toISOString() }, "Mais 2 horas no ar.");
+      };
+      if (b("[data-encerrar]")) b("[data-encerrar]").onclick = () => muda(x.id, { ate: null, video: null, titulo: "" }, "Live encerrada no site.");
     });
   }
 

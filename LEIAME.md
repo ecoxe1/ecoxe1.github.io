@@ -10,7 +10,7 @@ Não apague o arquivo `CNAME` do repositório, senão o domínio para de funcion
 
 | Arquivo | Para que serve |
 |---|---|
-| `index.html`, `elenco.html`, `partidas.html`, `amistosos.html`, `videos.html`, `noticias.html`, `recrutamento.html` | As páginas |
+| `index.html`, `elenco.html`, `partidas.html`, `amistosos.html`, `videos.html`, `noticias.html`, `recrutamento.html`, `aovivo.html` | As páginas (`aovivo.html` fica no rodapé e aparece no menu só quando alguém está ao vivo) |
 | `admin.html` | **Painel da diretoria** (login): candidaturas, amistosos, notícias e vídeos |
 | `assets/js/data.js` | Dados fixos do time: nome, links, elenco, partidas e conteúdos de reserva |
 | `assets/js/config.js` | Conexão com o Supabase (URL + chave publishable) |
@@ -19,7 +19,7 @@ Não apague o arquivo `CNAME` do repositório, senão o domínio para de funcion
 | `assets/css/style.css` | Visual. As cores ficam no topo (`--gold`, `--bg`...) |
 | `assets/js/vendor/supabase-2.118.0.min.js` | Biblioteca do Supabase usada só no painel, hospedada aqui (sem CDN). Para atualizar, troque o arquivo e o nome no `admin.html` |
 | `supabase/schema.sql` | Banco completo para uma instalação **nova** (tabelas, regras de segurança, limite de envios e pasta de fotos) |
-| `supabase/migrations/` | Alterações para um banco que **já existe**. Rode na ordem do nome (`01` a `10`) no SQL Editor. As 01 a 10 já foram rodadas no projeto `ec-oxe` em 17/11/2026 |
+| `supabase/migrations/` | Alterações para um banco que **já existe**. Rode na ordem do nome (`01` a `11`) no SQL Editor. As 01 a 11 já foram rodadas no projeto `ec-oxe` em 17/11/2026 |
 | `supabase/verificacao.sql` | Conferência só de leitura, para rodar depois das migrações |
 | `tools/atualiza-head.js` | Gera o trecho comum do `<head>` das 8 páginas (CSP, fontes, ícones, prévia de compartilhamento) e troca o `?v=N` |
 | `tools/check-data.js` | Confere o `data.js` (placar x gols, nomes do elenco, somas, V+E+D). Rode antes de commitar |
@@ -35,6 +35,7 @@ Acesse https://ecoxe.club/admin.html e entre com o e-mail e a senha de administr
 - **Segurança:** "Sair" desconecta só este aparelho; o painel sai sozinho depois de 30 minutos parado e não abre dentro de outro site.
 - **Amistosos:** confirme o pedido (ele aparece na agenda pública), depois marque como realizado e coloque o placar.
 - **Arquivar:** candidaturas e amistosos não se apagam direto. "Arquivar" manda o item para a gaveta "Arquivados" no fim da lista (amistoso arquivado sai da agenda pública); lá dentro ficam "Desarquivar" e "Apagar de vez".
+- **Ao vivo:** cadastre uma vez o canal de cada jogador (YouTube pelo link `youtube.com/channel/UC…`, Twitch ou Kick). Quando ele entrar ao vivo, clique em **Entrar ao vivo**: o site mostra o selo AO VIVO no menu e uma faixa na página inicial por 4 horas, e depois volta sozinho para offline. **+2h** estica (até 12 h), **Encerrar** desliga na hora. No YouTube, colar o link da live faz o player abrir direto nela. O vídeo só carrega quando o visitante clica em Assistir.
 - **Notícias e Vídeos:** publique com foto ou vídeo, sem mexer em código. Para esconder sem apagar, edite e desmarque "Publicada". Apagar também tira do Storage as fotos e vídeos enviados pelo painel.
 
 ## Supabase
@@ -49,7 +50,7 @@ Acesse https://ecoxe.club/admin.html e entre com o e-mail e a senha de administr
 - Nunca coloque a chave **secret** / **service_role** no site.
 - Links (lances, capas, vídeos) só aceitam `http(s)`, tanto no site quanto no banco. Os envios têm limite por hora no servidor (candidaturas: 3 por aparelho e 30 no total; amistosos: 5 e 40). Os números ficam no fim de `supabase/migrations/20261117_03_limite_envios.sql` (e no `schema.sql`).
 - Mudou o banco? Crie um arquivo novo em `supabase/migrations/` (`AAAAMMDD_NN_nome.sql`) e atualize o `schema.sql` para ficarem iguais.
-- Todas as páginas têm uma política de conteúdo (`Content-Security-Policy` no `<head>`). Ela só libera o projeto Supabase do `config.js`, o YouTube e as fontes do Google: imagem de capa colada de outro site **não aparece** (suba a foto pelo painel). Se um dia o site passar a usar outro serviço externo (analytics, outra fonte, outro player), acrescente o endereço em `tools/atualiza-head.js` e rode o script; não edite o bloco `<!-- head:comum -->` à mão.
+- Todas as páginas têm uma política de conteúdo (`Content-Security-Policy` no `<head>`). Ela só libera o projeto Supabase do `config.js`, os players do YouTube, da Twitch e do Kick e as fontes do Google: imagem de capa colada de outro site **não aparece** (suba a foto pelo painel). Se um dia o site passar a usar outro serviço externo (analytics, outra fonte, outro player), acrescente o endereço em `tools/atualiza-head.js` e rode o script; não edite o bloco `<!-- head:comum -->` à mão.
 
 ### Configurações no painel do Supabase (não são código)
 

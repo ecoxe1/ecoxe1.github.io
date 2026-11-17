@@ -14,7 +14,7 @@ const fs = require("fs");
 const path = require("path");
 
 const RAIZ = path.join(__dirname, "..");
-const PAGINAS = ["index", "elenco", "partidas", "amistosos", "videos", "noticias", "recrutamento", "admin"];
+const PAGINAS = ["index", "elenco", "partidas", "amistosos", "videos", "noticias", "recrutamento", "aovivo", "admin"];
 const INI = "<!-- head:comum -->", FIM = "<!-- /head:comum -->";
 
 const config = fs.readFileSync(path.join(RAIZ, "assets/js/config.js"), "utf8");
@@ -32,7 +32,7 @@ const CSP = [
   "font-src https://fonts.gstatic.com",
   `img-src 'self' data: ${SUPABASE} https://i.ytimg.com`,
   `media-src 'self' ${SUPABASE}`,
-  "frame-src https://www.youtube-nocookie.com https://www.youtube.com",
+  "frame-src https://www.youtube-nocookie.com https://www.youtube.com https://player.twitch.tv https://player.kick.com",
   `connect-src 'self' ${SUPABASE}`,
   "object-src 'none'",
   "base-uri 'self'",

@@ -47,6 +47,36 @@ const conteudoNuvem = !nuvem ? Promise.resolve() : Promise.all([
 ]);
 const guarda = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
 
+/* ---------- Transmissões ao vivo (tabela "lives"; usado no site e no painel) ----------
+   O banco guarda só identificadores; os endereços são montados aqui, sempre com encodeURIComponent. */
+const LIVE = {
+  nome: { youtube: "YouTube", twitch: "Twitch", kick: "Kick" },
+  noAr: l => !!l.ate && new Date(l.ate) > new Date(),
+  /* link colado na diretoria -> { plataforma, canal } (ou { erro }) */
+  canalDe: txt => {
+    const s = String(txt || "").trim();
+    let m = s.match(/youtube\.com\/channel\/(UC[\w-]{22})(?:[/?#]|$)/i) || s.match(/^(UC[\w-]{22})$/);
+    if (m) return { plataforma: "youtube", canal: m[1] };
+    if (/youtube\.com\/@|^@/i.test(s)) return { erro: "No YouTube, use o ID do canal (começa com UC): YouTube Studio > Configurações > Canal > Configurações avançadas, ou o link youtube.com/channel/UC…" };
+    if ((m = s.match(/twitch\.tv\/([A-Za-z0-9_]{3,25})(?:[/?#]|$)/i))) return { plataforma: "twitch", canal: m[1].toLowerCase() };
+    if ((m = s.match(/kick\.com\/([A-Za-z0-9_-]{3,30})(?:[/?#]|$)/i))) return { plataforma: "kick", canal: m[1].toLowerCase() };
+    return { erro: "Link não reconhecido. Use youtube.com/channel/UC…, twitch.tv/nome ou kick.com/nome." };
+  },
+  /* link da live do YouTube -> ID do vídeo (11 caracteres) */
+  videoDe: txt => { const m = String(txt || "").trim().match(/(?:youtu\.be\/|[?&]v=|\/live\/|\/embed\/|\/shorts\/)([\w-]{11})(?:[?&#/]|$)/); return m ? m[1] : null; },
+  pagina: l => l.plataforma === "youtube" ? `https://www.youtube.com/channel/${encodeURIComponent(l.canal)}${l.video ? "" : "/live"}`
+    : l.plataforma === "twitch" ? `https://www.twitch.tv/${encodeURIComponent(l.canal)}` : `https://kick.com/${encodeURIComponent(l.canal)}`,
+  player: l => {
+    if (l.plataforma === "youtube") return l.video ? `https://www.youtube-nocookie.com/embed/${encodeURIComponent(l.video)}?autoplay=1&rel=0`
+      : `https://www.youtube.com/embed/live_stream?channel=${encodeURIComponent(l.canal)}&autoplay=1`;
+    if (l.plataforma === "twitch") { /* a Twitch exige o domínio do site em "parent" */
+      const pais = [...new Set([location.hostname, "ecoxe.club", "www.ecoxe.club"])].map(p => "&parent=" + encodeURIComponent(p)).join("");
+      return `https://player.twitch.tv/?channel=${encodeURIComponent(l.canal)}${pais}&autoplay=true`;
+    }
+    return `https://player.kick.com/${encodeURIComponent(l.canal)}?autoplay=true`;
+  },
+};
+
 /* Texto das notícias: **negrito**, *itálico*, [texto](https://link). O HTML é escapado antes. */
 const fmt = s => esc(s)
   .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
@@ -76,10 +106,28 @@ const redes = [["Discord", clube.discord], ["Instagram", clube.instagram], ["You
 $("#footer").innerHTML = `
   <div class="wrap">
     <span>© ${new Date().getFullYear()} ${esc(clube.nome)} · Fundado em ${clube.fundacao} · Pro Clubs ${esc(clube.jogo)}</span>
-    <div class="social">${redes.map(([n, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${n}</a>`).join("")}</div>
+    <div class="social"><a href="aovivo.html">Ao vivo</a>${redes.map(([n, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${n}</a>`).join("")}</div>
   </div>`;
 $$("[data-discord]").forEach(a => { if (clube.discord) { a.href = clube.discord; a.target = "_blank"; a.rel = "noopener"; } else a.hidden = true; });
 $$("[data-nome]").forEach(el => el.textContent = clube.nome);
+
+/* Selo "AO VIVO": uma consulta pequena (3 s no máximo, guardada 60 s na aba) e, se alguém estiver no ar,
+   aparece um item no menu e, na página inicial, uma faixa. Se a consulta falhar, nada aparece e nada quebra. */
+(async () => {
+  if (!nuvem || page === "admin") return;
+  let ativos = null;
+  try { const c = JSON.parse(sessionStorage.getItem("oxe_live") || "null"); if (c && Date.now() - c.t < 60000) ativos = c.ativos; } catch (e) {}
+  if (!ativos) {
+    try {
+      ativos = await comTempo(sbGet("lives", `select=jogador,plataforma,titulo&ate=gt.${encodeURIComponent(new Date().toISOString())}&order=ate.desc`), 3000);
+      try { sessionStorage.setItem("oxe_live", JSON.stringify({ t: Date.now(), ativos })); } catch (e) {}
+    } catch (e) { return; }
+  }
+  if (!ativos.length) return;
+  const quem = ativos.map(l => l.jogador).join(", ");
+  $("#menu-links").insertAdjacentHTML("afterbegin", `<a href="aovivo.html" class="live-link${page === "aovivo" ? " active" : ""}"${page === "aovivo" ? ' aria-current="page"' : ""}><span class="live-dot" aria-hidden="true"></span>Ao vivo</a>`);
+  if (page === "inicio") $("#nav").insertAdjacentHTML("afterend", `<a class="live-faixa" href="aovivo.html"><span class="live-dot" aria-hidden="true"></span><b>AO VIVO AGORA</b><span>${esc(quem)}${ativos[0].titulo ? " · " + esc(ativos[0].titulo) : ""}</span><span class="live-ver">Assistir ›</span></a>`);
+})();
 
 /* ---------- Números calculados a partir das partidas ---------- */
 const res = m => m.gp > m.gc ? "V" : m.gp < m.gc ? "D" : "E";
@@ -427,4 +475,35 @@ if (page === "amistosos") {
       p ? `Recebemos o pedido do <b>${esc(p.time)}</b>. Vamos falar com o capitão <b>${esc(p.capitao)}</b> pelo contato informado para confirmar.` : "Recebemos o seu pedido.",
       p ? [["Dia e horário", `${dataCurta(p.data)} às ${p.hora}`], ["Contato", p.contato]] : [], "Enviar outro pedido"),
   });
+}
+
+if (page === "aovivo") {
+  /* Lista de canais; quem está no ar vem primeiro. O player só carrega ao clicar (o YouTube, a Twitch e o Kick
+     não recebem nada de quem só abre a página). */
+  const caixa = $("#lives");
+  const cartao = l => {
+    const noAr = LIVE.noAr(l), capa = l.plataforma === "youtube" && l.video ? `https://i.ytimg.com/vi/${encodeURIComponent(l.video)}/hqdefault.jpg` : "";
+    return `<article class="panel live-card${noAr ? " no-ar" : ""}" data-id="${esc(l.id)}">
+      <div class="live-palco">${capa ? `<img src="${esc(capa)}" alt="" loading="lazy">` : `<img class="logo" src="assets/img/escudo-240.webp" alt="" width="240" height="240">`}
+        ${noAr ? `<button class="btn btn-gold live-play" type="button" data-assistir>▶ Assistir</button>` : `<span class="live-off">Offline</span>`}</div>
+      <div class="live-info">
+        <div class="live-top">${noAr ? `<span class="live-tag"><span class="live-dot" aria-hidden="true"></span>AO VIVO</span>` : ""}<span class="tag-comp">${esc(LIVE.nome[l.plataforma] || l.plataforma)}</span></div>
+        <h3>${esc(l.jogador)}</h3>
+        ${noAr && l.titulo ? `<p class="sec-sub" style="margin:0 0 8px">${esc(l.titulo)}</p>` : ""}
+        <a href="${esc(LIVE.pagina(l))}" target="_blank" rel="noopener">${noAr ? "Abrir na" : "Ver canal na"} ${esc(LIVE.nome[l.plataforma] || "plataforma")} ›</a>
+      </div></article>`;
+  };
+  const mostra = lista => {
+    if (!lista.length) { caixa.innerHTML = `<div class="empty-state">Nenhuma transmissão cadastrada ainda.</div>`; return; }
+    const ord = lista.slice().sort((a, b) => (LIVE.noAr(b) - LIVE.noAr(a)) || String(a.jogador).localeCompare(String(b.jogador)));
+    caixa.innerHTML = (ord.some(LIVE.noAr) ? "" : `<p class="sec-sub">Ninguém ao vivo agora. Os canais estão abaixo.</p>`) + ord.map(cartao).join("");
+    caixa.onclick = e => {
+      const b = e.target.closest("[data-assistir]"); if (!b) return;
+      const card = b.closest(".live-card"), l = lista.find(x => x.id === card.dataset.id); if (!l) return;
+      card.querySelector(".live-palco").innerHTML = `<iframe src="${esc(LIVE.player(l))}" title="Transmissão de ${esc(l.jogador)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
+    };
+  };
+  if (!nuvem) mostra([]);
+  else comTempo(sbGet("lives", "select=id,jogador,plataforma,canal,video,titulo,ate&order=jogador.asc"), 7000).then(mostra)
+    .catch(e => { console.warn("Transmissões indisponíveis:", e.message); caixa.innerHTML = `<div class="empty-state">Não foi possível carregar as transmissões agora. Recarregue a página em instantes.</div>`; });
 }
