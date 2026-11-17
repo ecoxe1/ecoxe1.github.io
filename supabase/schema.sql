@@ -50,8 +50,21 @@ create table if not exists public.candidaturas (
   sobre text check (char_length(sobre) <= 800),
   nota_admin text
 );
--- Uma candidatura pendente por ID (o site mostra "já recebemos" quando repete)
-create unique index if not exists candidaturas_psn_pendente on public.candidaturas (lower(psn)) where status = 'pendente';
+-- Sem índice único por ID (migração 08): repetidas entram e o painel mostra o selo "N com este ID".
+drop index if exists public.candidaturas_psn_pendente;
+-- Campos de escolha só com as opções do formulário (migração 09). Mudou o <select>? Mude aqui também.
+alter table public.candidaturas drop constraint if exists candidaturas_plataforma_lista;
+alter table public.candidaturas add constraint candidaturas_plataforma_lista
+  check (plataforma in ('','PlayStation 5','Xbox Series','PC'));
+alter table public.candidaturas drop constraint if exists candidaturas_posicao_lista;
+alter table public.candidaturas add constraint candidaturas_posicao_lista
+  check (posicao in ('Goleiro','Zagueiro','Lateral','Volante','Meia','Ponta','Atacante'));
+alter table public.candidaturas drop constraint if exists candidaturas_posicao2_lista;
+alter table public.candidaturas add constraint candidaturas_posicao2_lista
+  check (posicao2 in ('','Goleiro','Zagueiro','Lateral','Volante','Meia','Ponta','Atacante'));
+alter table public.candidaturas drop constraint if exists candidaturas_experiencia_lista;
+alter table public.candidaturas add constraint candidaturas_experiencia_lista
+  check (experiencia in ('','Começando agora','Jogo casual','Já joguei em clube','Competitivo / liga'));
 alter table public.candidaturas enable row level security;
 
 -- ---------- Amistosos ----------
@@ -74,6 +87,12 @@ create table if not exists public.amistosos (
   placar_eles int check (placar_eles >= 0),
   nota_admin text
 );
+alter table public.amistosos drop constraint if exists amistosos_plataforma_lista;
+alter table public.amistosos add constraint amistosos_plataforma_lista
+  check (plataforma in ('','PlayStation 5','Xbox Series','PC','Crossplay'));
+alter table public.amistosos drop constraint if exists amistosos_divisao_lista;
+alter table public.amistosos add constraint amistosos_divisao_lista
+  check (divisao in ('','1','2','3','4','5','6','7','8','9','10'));
 alter table public.amistosos enable row level security;
 
 -- ---------- Notícias ----------

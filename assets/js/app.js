@@ -168,9 +168,9 @@ function formulario({ form, msg, botao, tabela, chaveEspera, ler, validar, resum
     botao.disabled = true; botao.textContent = "Enviando…";
     try {
       const r = await fetch(`${SB.url}/rest/v1/${tabela}`, { method: "POST", headers: sbHeaders({ "Content-Type": "application/json", Prefer: "return=minimal" }), body: JSON.stringify(dados) });
-      if (r.ok) { guarda.set(chaveEspera, String(Date.now())); concluido(dados); return; }
+      /* 409 (registro repetido) recebe a mesma resposta do sucesso: o site não revela se um ID já se candidatou. */
+      if (r.ok || r.status === 409) { guarda.set(chaveEspera, String(Date.now())); concluido(dados); return; }
       botao.disabled = false; botao.textContent = textoBotao;
-      if (r.status === 409) return mostra("Já recebemos um envio igual a esse e ele está em análise. Aguarde nosso contato.");
       if (r.status === 429) return plano("Recebemos muitos envios em pouco tempo e o servidor pediu uma pausa.");
       if (r.status === 400) return mostra("Alguma informação não foi aceita. Confira os campos e tente de novo.");
       plano("Não foi possível enviar agora.");

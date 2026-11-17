@@ -1,0 +1,3 @@
+# GitHub Pages (Jekyll): o que NAO vai para o site publico.
+# Os arquivos continuam no repositorio; so nao sao publicados em ecoxe.club.
+exclude: [supabase, LEIAME.md, tools, "*.txt"]

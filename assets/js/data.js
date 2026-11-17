@@ -39,7 +39,6 @@ const elenco = [
   {n:"Diegomengo0313", p:"MEI", o:0, j:3, g:0, a:0, mvp:1, psn:"Diegomengo0313", foto:"", ativo:true},
   {n:"Balbenadal", p:"MEI", o:0, j:2, g:1, a:0, mvp:1, psn:"Balbenadal", foto:"", ativo:true},
   {n:"RP_BBMP", p:"MEI", o:0, j:2, g:0, a:0, mvp:1, psn:"RP_BBMP", foto:"", ativo:true},
-  {n:"daniloqc84", p:"", o:0, j:0, g:0, a:0, mvp:0, psn:"daniloqc84", foto:"", ativo:true},
 ];
 
 /* ---------- Partidas (do Pro Clubs Tracker) ----------

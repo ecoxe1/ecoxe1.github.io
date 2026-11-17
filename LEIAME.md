@@ -17,16 +17,20 @@ Não apague o arquivo `CNAME` do repositório, senão o domínio para de funcion
 | `assets/js/app.js` | Monta as páginas |
 | `assets/js/admin.js` | Painel |
 | `assets/css/style.css` | Visual. As cores ficam no topo (`--gold`, `--bg`...) |
-| `assets/js/vendor/supabase-2.45.4.min.js` | Biblioteca do Supabase usada só no painel, hospedada aqui (sem CDN). Para atualizar, troque o arquivo e o nome no `admin.html` |
+| `assets/js/vendor/supabase-2.118.0.min.js` | Biblioteca do Supabase usada só no painel, hospedada aqui (sem CDN). Para atualizar, troque o arquivo e o nome no `admin.html` |
 | `supabase/schema.sql` | Banco completo para uma instalação **nova** (tabelas, regras de segurança, limite de envios e pasta de fotos) |
-| `supabase/migrations/` | Alterações para um banco que **já existe**. Rode na ordem do nome (`01` a `07`) no SQL Editor. As 01 a 07 já foram rodadas no projeto `ec-oxe` em 17/11/2026 |
+| `supabase/migrations/` | Alterações para um banco que **já existe**. Rode na ordem do nome (`01` a `09`) no SQL Editor. As 01 a 09 já foram rodadas no projeto `ec-oxe` em 17/11/2026 |
 | `supabase/verificacao.sql` | Conferência só de leitura, para rodar depois das migrações |
+| `tools/atualiza-head.js` | Gera o trecho comum do `<head>` das 8 páginas (CSP, fontes, ícone) e troca o `?v=N` |
+| `_config.yml` | Diz ao GitHub Pages o que **não** publicar: `supabase/`, `tools/`, este LEIAME e os `.txt` |
+| `.gitignore` | Arquivos locais que nunca vão para o repositório (listas de tarefas `.txt`) |
 
 ## Painel (admin.html)
 
 Acesse https://ecoxe.club/admin.html e entre com o e-mail e a senha de administrador.
 
-- **Candidaturas:** veja quem quer entrar, aprove ou recuse e anote.
+- **Candidaturas:** veja quem quer entrar, aprove ou recuse e anote. O selo "N com este ID" avisa quando o mesmo ID mandou mais de uma (o site não conta isso ao visitante).
+- **Segurança:** "Sair" desconecta só este aparelho; o painel sai sozinho depois de 30 minutos parado e não abre dentro de outro site.
 - **Amistosos:** confirme o pedido (ele aparece na agenda pública), depois marque como realizado e coloque o placar.
 - **Notícias e Vídeos:** publique com foto ou vídeo, sem mexer em código.
 
@@ -42,7 +46,7 @@ Acesse https://ecoxe.club/admin.html e entre com o e-mail e a senha de administr
 - Nunca coloque a chave **secret** / **service_role** no site.
 - Links (lances, capas, vídeos) só aceitam `http(s)`, tanto no site quanto no banco. Os envios têm limite por hora no servidor (candidaturas: 3 por aparelho e 30 no total; amistosos: 5 e 40). Os números ficam no fim de `supabase/migrations/20261117_03_limite_envios.sql` (e no `schema.sql`).
 - Mudou o banco? Crie um arquivo novo em `supabase/migrations/` (`AAAAMMDD_NN_nome.sql`) e atualize o `schema.sql` para ficarem iguais.
-- Todas as páginas têm uma política de conteúdo (`Content-Security-Policy` no `<head>`). Se um dia o site passar a usar outro serviço externo (analytics, outra fonte, outro player), acrescente o endereço dele nessa linha em todos os `.html`, senão o navegador bloqueia.
+- Todas as páginas têm uma política de conteúdo (`Content-Security-Policy` no `<head>`). Ela só libera o projeto Supabase do `config.js`, o YouTube e as fontes do Google: imagem de capa colada de outro site **não aparece** (suba a foto pelo painel). Se um dia o site passar a usar outro serviço externo (analytics, outra fonte, outro player), acrescente o endereço em `tools/atualiza-head.js` e rode o script; não edite o bloco `<!-- head:comum -->` à mão.
 
 ### Configurações no painel do Supabase (não são código)
 
@@ -53,7 +57,7 @@ Acesse https://ecoxe.club/admin.html e entre com o e-mail e a senha de administr
 ## Atualizar dados fixos
 
 Elenco e partidas ficam em `assets/js/data.js`. Os números da página inicial são calculados a partir das partidas.
-Ao trocar CSS ou JS, aumente o `?v=N` nos links dos arquivos `.html` para o navegador não usar a versão antiga.
+Ao trocar CSS ou JS, aumente a versão para o navegador não usar a antiga: `node tools/atualiza-head.js 8` (troca o `?v=N` das 8 páginas; o número atual está no link do `style.css`).
 
 ## Ver no computador antes de publicar
 

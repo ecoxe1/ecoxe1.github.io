@@ -3,6 +3,8 @@
 (function () {
   const root = document.getElementById("root");
   const q = s => root.querySelector(s), qa = s => [...root.querySelectorAll(s)];
+  /* Anti-frame: a CSP em <meta> não aceita frame-ancestors, então o painel se recusa a rodar dentro de outro site. */
+  if (window.top !== window.self) { root.innerHTML = `<div class="panel"><h3>Painel bloqueado</h3><p class="sec-sub" style="margin:0">Abra o painel direto em ecoxe.club/admin.html.</p></div>`; return; }
   if (!nuvem) { root.innerHTML = `<div class="panel"><h3>Painel não configurado</h3><p class="sec-sub" style="margin:0">Preencha url e key em assets/js/config.js.</p></div>`; return; }
   if (!window.supabase) { root.innerHTML = `<div class="panel"><h3>Não foi possível carregar o painel</h3><p class="sec-sub" style="margin:0">Verifique a internet e recarregue a página.</p></div>`; return; }
   const sb = window.supabase.createClient(SB.url, SB.key);
@@ -32,9 +34,30 @@
     if (error) throw error;
     return sb.storage.from("media").getPublicUrl(caminho).data.publicUrl;
   }
+  /* Apaga do Storage os arquivos que o painel enviou (links de fora são ignorados). Falha aqui não atrapalha o resto. */
+  const PUBLICO = `${SB.url}/storage/v1/object/public/media/`;
+  const apagaArquivos = urls => {
+    const caminhos = urls.map(u => String(u || "").replace(/^arquivo:/, "")).filter(u => u.startsWith(PUBLICO)).map(u => decodeURIComponent(u.slice(PUBLICO.length)));
+    return caminhos.length ? sb.storage.from("media").remove(caminhos).catch(() => {}) : Promise.resolve();
+  };
+
+  /* Troca rápida de aba: cada abertura ganha um número; resposta de uma abertura antiga é descartada. */
+  let vez = 0;
+  const marca = () => { const n = vez; return () => n === vez; };
+
+  /* Sai sozinho depois de 30 minutos sem mexer no painel. */
+  const OCIOSO_MS = 30 * 60 * 1000;
+  let ocioso, logado = false;
+  const mexeu = () => {
+    if (!logado) return;
+    clearTimeout(ocioso);
+    ocioso = setTimeout(async () => { logado = false; await sb.auth.signOut({ scope: "local" }).catch(() => {}); telaLogin("Você ficou 30 minutos sem mexer e saiu do painel. Entre de novo."); }, OCIOSO_MS);
+  };
+  ["pointerdown", "keydown", "scroll", "touchstart"].forEach(t => window.addEventListener(t, mexeu, { passive: true }));
 
   /* ---------- login ---------- */
   function telaLogin(msg) {
+    logado = false; clearTimeout(ocioso); vez++;
     root.innerHTML = `<form class="panel adm-login" id="login" novalidate>
       <h3>Entrar no painel</h3>
       <label for="em">E-mail</label><input id="em" name="email" type="email" autocomplete="username" required>
@@ -56,14 +79,15 @@
     const { data: adm, error: errAdm } = await sb.from("admins").select("user_id").eq("user_id", session.user.id).maybeSingle();
     if (expirada(errAdm)) return expira();
     if (errAdm) return telaLogin("Não foi possível conferir o acesso agora. Tente de novo em instantes.");
-    if (!adm) { await sb.auth.signOut(); return telaLogin("Esta conta não é de administrador."); }
+    if (!adm) { await sb.auth.signOut({ scope: "local" }); return telaLogin("Esta conta não é de administrador."); }
+    logado = true; mexeu();
     root.innerHTML = `
       <div class="adm-top"><span class="by">Logado como <b>${esc(session.user.email)}</b></span><button class="btn btn-ghost btn-sm" id="sair" type="button">Sair</button></div>
       <div class="toolbar adm-tabs" role="tablist">
         <button class="fbtn" data-aba="cand">Candidaturas</button><button class="fbtn" data-aba="amis">Amistosos</button>
         <button class="fbtn" data-aba="news">Notícias</button><button class="fbtn" data-aba="vid">Vídeos</button>
       </div><div id="aba"></div>`;
-    q("#sair").onclick = async () => { await sb.auth.signOut(); telaLogin(); };
+    q("#sair").onclick = async () => { await sb.auth.signOut({ scope: "local" }); telaLogin(); }; /* só este aparelho */
     qa("[data-aba]").forEach(b => b.onclick = () => abre(b.dataset.aba));
     abre(guarda.get("oxe_aba") || "cand");
   }
@@ -73,17 +97,25 @@
     guarda.set("oxe_aba", k);
     qa("[data-aba]").forEach(b => b.classList.toggle("on", b.dataset.aba === k));
     q("#aba").innerHTML = `<div class="empty-state">Carregando…</div>`;
-    ABAS[k]().catch(e => { if (expirada(e)) return expira(); q("#aba").innerHTML = `<div class="msg err">Erro: ${esc(erro(e))}</div>`; });
+    vez++;
+    const valendo = marca();
+    ABAS[k]().catch(e => { if (!valendo()) return; if (expirada(e)) return expira(); q("#aba").innerHTML = `<div class="msg err">Erro: ${esc(erro(e))}</div>`; });
   }
 
   /* ---------- Candidaturas ---------- */
   async function abaCandidaturas() {
+    const valendo = marca();
     const { data, error } = await sb.from("candidaturas").select("*").order("created_at", { ascending: false });
+    if (!valendo()) return;
     if (error) throw error;
     const n = s => data.filter(x => x.status === s).length;
+    /* O site não avisa mais o visitante que um ID já se candidatou; quem vê a repetição é só a diretoria. */
+    const repetidas = {};
+    data.filter(x => x.status === "pendente").forEach(x => { const k = String(x.psn).toLowerCase(); repetidas[k] = (repetidas[k] || 0) + 1; });
+    const selo = c => { const t = c.status === "pendente" && repetidas[String(c.psn).toLowerCase()]; return t > 1 ? ` <span class="adm-badge pendente" title="Mesmo ID em mais de uma candidatura pendente">${t} com este ID</span>` : ""; };
     q("#aba").innerHTML = `<p class="sec-sub">${n("pendente")} pendente(s) · ${n("aprovado")} aprovada(s) · ${n("recusado")} recusada(s)</p>` + (data.length ? data.map(c => `
-      <div class="panel adm-item" data-id="${c.id}">
-        <div class="adm-head"><h3>${esc(c.psn)}${c.nick ? ` <small>(${esc(c.nick)})</small>` : ""}</h3><span class="adm-badge ${c.status}">${c.status}</span></div>
+      <div class="panel adm-item" data-id="${esc(c.id)}">
+        <div class="adm-head"><h3>${esc(c.psn)}${c.nick ? ` <small>(${esc(c.nick)})</small>` : ""}${selo(c)}</h3><span class="adm-badge ${esc(c.status)}">${esc(c.status)}</span></div>
         <dl class="adm-dl">
           <dt>Posição</dt><dd>${esc(c.posicao)}${c.posicao2 ? " / " + esc(c.posicao2) : ""}</dd>
           <dt>Plataforma</dt><dd>${esc(c.plataforma || "-")}</dd>
@@ -106,11 +138,13 @@
 
   /* ---------- Amistosos ---------- */
   async function abaAmistosos() {
+    const valendo = marca();
     const { data, error } = await sb.from("amistosos").select("*").order("data", { ascending: false }).order("hora", { ascending: false });
+    if (!valendo()) return;
     if (error) throw error;
     q("#aba").innerHTML = `<p class="sec-sub">Mude para <b>confirmado</b> para o jogo aparecer na agenda pública. Depois do jogo, marque <b>realizado</b> e coloque o placar.</p>` + (data.length ? data.map(a => `
-      <div class="panel adm-item" data-id="${a.id}">
-        <div class="adm-head"><h3>${esc(clube.nome)} x ${esc(a.time)}</h3><span class="adm-badge ${a.status}">${a.status}</span></div>
+      <div class="panel adm-item" data-id="${esc(a.id)}">
+        <div class="adm-head"><h3>${esc(clube.nome)} x ${esc(a.time)}</h3><span class="adm-badge ${esc(a.status)}">${esc(a.status)}</span></div>
         <dl class="adm-dl">
           <dt>Dia e horário</dt><dd>${dataCurta(a.data)} às ${esc(String(a.hora).slice(0, 5))}${a.data2 ? ` · outra opção: ${dataCurta(a.data2)} às ${esc(String(a.hora2 || "").slice(0, 5))}` : ""}</dd>
           <dt>Capitão</dt><dd>${esc(a.capitao)} (${esc(a.plataforma || "-")})</dd>
@@ -155,7 +189,9 @@
 
   /* ---------- Notícias ---------- */
   async function abaNoticias(editando) {
+    const valendo = marca();
     const { data, error } = await sb.from("news").select("*").order("data", { ascending: false }).order("created_at", { ascending: false });
+    if (!valendo()) return;
     if (error) throw error;
     const a = editando ? data.find(x => x.id === editando) : null;
     q("#aba").innerHTML = `
@@ -204,21 +240,27 @@
           autor: f.autor.value.trim() || "Diretoria", capa, corpo: f.corpo.value.trim(), publicado: f.publicado.checked };
         const { error } = a ? await sb.from("news").update(dados).eq("id", a.id) : await sb.from("news").insert({ id: slug(dados.titulo), ...dados });
         if (error) throw error;
+        if (a?.capa && a.capa !== capa) apagaArquivos([a.capa]); /* capa trocada: a antiga sai do Storage */
         diga(a ? "Notícia atualizada!" : "Notícia publicada!"); abaNoticias();
       } catch (err) { btn.disabled = false; btn.textContent = a ? "Salvar alterações" : "Publicar notícia"; falhou(err, "Erro: "); }
     };
     qa("[data-ed]").forEach(b => b.onclick = () => { abaNoticias(b.dataset.ed); window.scrollTo({ top: 0, behavior: "smooth" }); });
     qa("[data-del]").forEach(b => b.onclick = async () => {
       if (!confirm("Apagar esta notícia de vez?")) return;
+      const x = data.find(n => n.id === b.dataset.del);
       const { error } = await sb.from("news").delete().eq("id", b.dataset.del);
       if (error) return falhou(error, "Erro ao apagar: ");
+      /* capa e fotos inseridas no texto também saem do Storage */
+      if (x) apagaArquivos([x.capa, ...[...String(x.corpo || "").matchAll(/!\[[^\]]*\]\((https:\/\/[^)\s]+)\)/g)].map(m => m[1])]);
       diga("Notícia apagada."); abaNoticias();
     });
   }
 
   /* ---------- Vídeos ---------- */
   async function abaVideos(editando) {
+    const valendo = marca();
     const { data, error } = await sb.from("videos").select("*").order("data", { ascending: false }).order("created_at", { ascending: false });
+    if (!valendo()) return;
     if (error) throw error;
     const v = editando ? data.find(x => x.id === editando) : null;
     const tipoSrc = v ? v.src.slice(0, v.src.indexOf(":")) : "youtube", valSrc = v ? v.src.slice(v.src.indexOf(":") + 1) : "";
@@ -266,14 +308,17 @@
         const dados = { titulo: f.titulo.value.trim(), tipo: f.tipo.value, data: f.data.value || hojeISO, src, capa, descr: f.descr.value.trim(), partida: f.partida.value, publicado: f.publicado.checked };
         const { error } = v ? await sb.from("videos").update(dados).eq("id", v.id) : await sb.from("videos").insert({ id: slug(dados.titulo), ...dados });
         if (error) throw error;
+        if (v) apagaArquivos([v.capa !== capa && v.capa, v.src !== src && v.src]); /* arquivo ou capa trocados: os antigos saem do Storage */
         diga(v ? "Vídeo atualizado!" : "Vídeo publicado!"); abaVideos();
       } catch (err) { btn.disabled = false; btn.textContent = v ? "Salvar alterações" : "Publicar vídeo"; falhou(err, "Erro: "); }
     };
     qa("[data-ed]").forEach(b => b.onclick = () => { abaVideos(b.dataset.ed); window.scrollTo({ top: 0, behavior: "smooth" }); });
     qa("[data-del]").forEach(b => b.onclick = async () => {
       if (!confirm("Apagar este vídeo de vez?")) return;
+      const x = data.find(n => n.id === b.dataset.del);
       const { error } = await sb.from("videos").delete().eq("id", b.dataset.del);
       if (error) return falhou(error, "Erro ao apagar: ");
+      if (x) apagaArquivos([x.capa, x.src]);
       diga("Vídeo apagado."); abaVideos();
     });
   }
