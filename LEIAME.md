@@ -19,7 +19,7 @@ Não apague o arquivo `CNAME` do repositório, senão o domínio para de funcion
 | `assets/css/style.css` | Visual. As cores ficam no topo (`--gold`, `--bg`...) |
 | `assets/js/vendor/supabase-2.118.0.min.js` | Biblioteca do Supabase usada só no painel, hospedada aqui (sem CDN). Para atualizar, troque o arquivo e o nome no `admin.html` |
 | `supabase/schema.sql` | Banco completo para uma instalação **nova** (tabelas, regras de segurança, limite de envios e pasta de fotos) |
-| `supabase/migrations/` | Alterações para um banco que **já existe**. Rode na ordem do nome (`01` a `14`) no SQL Editor. As 01 a 14 já foram rodadas no projeto `ec-oxe` em 17/11/2026 |
+| `supabase/migrations/` | Alterações para um banco que **já existe**. Rode na ordem do nome (`01` a `15`) no SQL Editor. As 01 a 14 já foram rodadas no projeto `ec-oxe` em 17/11/2026 |
 | `supabase/functions/checa-live/` | Função do Supabase que confere se os canais do YouTube e da Twitch estão ao vivo (farol do menu) |
 | `assets/js/favorito-tracker.js` | Código do favorito "⚽ Copiar do tracker" (o painel monta o link a partir dele; não roda no site) |
 | `supabase/verificacao.sql` | Conferência só de leitura, para rodar depois das migrações |
@@ -66,7 +66,7 @@ Acesse https://ecoxe.club/admin.html e entre com o e-mail e a senha de administr
 2. Abra a página do EC OXE no Pro Clubs Tracker, espere carregar e clique no favorito. Ele abre cada partida e, no fim, mostra **Enviar para o painel do EC OXE**.
 3. Confira a prévia no painel e clique em **Gravar no site**. Partidas, temporada (V/E/D, gols, divisão, SR) e os números do elenco atualizam na hora.
 
-O tracker só mostra as últimas partidas; o banco guarda todas que já foram importadas. Jogador novo aparece sozinho no Elenco (com o ID do jogo; para trocar o nome mostrado, cadastre-o no `data.js` com o mesmo `psn`). Se o tracker mudar o jeito de mostrar e a prévia vier errada, o ajuste é na função `leTracker()` do `admin.js`.
+O tracker (e a EA) só guarda as **10 últimas partidas** do clube; o banco guarda todas que já foram importadas. Os números do Elenco (jogos, gols, assistências, MVP e OVR) vêm da aba **Players** do tracker, que tem a **temporada inteira** de cada jogador; o favorito lê essa aba e o comparador de jogadores (que liga o nome no jogo ao PSN). O tracker não tem horário fixo: cada visita monta a página na hora com os dados da EA, que atualiza alguns minutos depois de cada partida. Jogador novo aparece sozinho no Elenco (com o ID do jogo; para trocar o nome mostrado, cadastre-o no `data.js` com o mesmo `psn`). Se o tracker mudar o jeito de mostrar e a prévia vier errada, o ajuste é na função `leTracker()` do `admin.js`.
 
 ## Atualizar dados fixos
 

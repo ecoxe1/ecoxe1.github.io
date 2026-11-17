@@ -54,7 +54,8 @@ const guarda = { get: k => { try { return localStorage.getItem(k); } catch (e) {
 const aoAtualizarEstatisticas = [];
 function aplicaEstatisticas({ rows, temp }) {
   if (temp) clube.temporada = { jogos: temp.jogos, v: temp.v, e: temp.e, d: temp.d, gp: temp.gp, gc: temp.gc, divisao: temp.divisao, sr: temp.sr };
-  if (!rows || !rows.length) return !!temp;
+  rows = rows || [];
+  if (!rows.length && !temp) return false;
   const porPsn = new Map(elenco.map(p => [String(p.psn || p.n).toLowerCase(), p]));
   const jogador = psn => {
     const k = String(psn).toLowerCase();
@@ -68,7 +69,23 @@ function aplicaEstatisticas({ rows, temp }) {
     jogadores: (r.jogadores || []).map(j => { const p = jogador(j.psn); if (p.novo && !p.p && j.pos) p.p = j.pos; return p.n; }),
   })));
   partidas.sort((a, b) => Date.parse(b.data) - Date.parse(a.data));
-  if (partidas.every(m => Array.isArray(m.jogadores))) { /* só recalcula quando toda partida tem a lista de quem jogou */
+  /* Totais da temporada (aba Players do tracker, vindos da EA) valem mais que somar as partidas:
+     o tracker só guarda as 10 últimas. OVR e posição também vêm de lá quando o data.js não tem. */
+  const totais = temp && Array.isArray(temp.jogadores) ? temp.jogadores.filter(t => t.psn) : [];
+  if (totais.length) {
+    const POS_EA = { GK: "GK", CB: "ZAG", LCB: "ZAG", RCB: "ZAG", LB: "LAT", RB: "LAT", LWB: "LAT", RWB: "LAT", CDM: "VOL", CM: "MEI", CAM: "MEI", LM: "MEI", RM: "MEI", LW: "ATA", RW: "ATA", CF: "ATA", ST: "ATA" };
+    totais.forEach(t => {
+      const conhecido = porPsn.has(String(t.psn).toLowerCase());
+      if (!conhecido && !(t.jogos > 0)) return; /* não cria jogador novo sem jogo na temporada */
+      const p = jogador(t.psn);
+      p.j = t.jogos || 0; p.g = t.gols || 0; p.a = t.assist || 0; p.mvp = t.mvp || 0;
+      if (t.ovr) p.o = t.ovr;
+      if (!p.p && POS_EA[t.pos]) p.p = POS_EA[t.pos];
+      if (t.nome_jogo) p.nomeJogo = t.nome_jogo;
+    });
+    return true;
+  }
+  if (partidas.every(m => Array.isArray(m.jogadores))) { /* sem os totais: soma as partidas que tiverem a lista de quem jogou */
     const por = new Map(elenco.map(p => [p.n, p]));
     elenco.forEach(p => { p.j = p.g = p.a = p.mvp = 0; });
     const soma = (n, k) => { const p = por.get(n); if (p) p[k]++; };
@@ -304,7 +321,7 @@ function carta(p) {
       <div class="photo">${p.foto ? `<img src="assets/players/${esc(p.foto)}" alt="Foto de ${esc(p.n)}" loading="lazy">` : SILHUETA}</div>
     </div>
     <h3>${esc(p.n)}</h3>
-    <div class="psn"><span class="tag">ID</span>${esc(p.psn || "a informar")}</div>
+    <div class="psn"><span class="tag">ID</span>${esc(p.psn || "a informar")}</div>${p.nomeJogo && p.nomeJogo !== p.n ? `<div class="psn"><span class="tag">NO JOGO</span>${esc(p.nomeJogo)}</div>` : ""}
     <div class="mini">
       <div><b>${p.j}</b><span>Jogos</span></div><div><b>${p.g}</b><span>Gols</span></div>
       <div><b>${p.a}</b><span>Assis.</span></div><div title="Vezes melhor em campo"><b>${p.mvp}</b><span>MVP</span></div>

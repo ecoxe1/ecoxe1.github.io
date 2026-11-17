@@ -353,3 +353,8 @@ create policy "admin gerencia" on public.temporada for all to authenticated usin
 -- Função checa-live (service_role): só lê e atualiza a tabela lives (migração 14).
 grant usage on schema public to service_role;
 grant select, update on public.lives to service_role;
+
+-- Totais da temporada por jogador (migração 15).
+alter table public.temporada add column if not exists jogadores jsonb not null default '[]';
+alter table public.temporada drop constraint if exists temporada_jogadores_lista;
+alter table public.temporada add constraint temporada_jogadores_lista check (jsonb_typeof(jogadores) = 'array' and jsonb_array_length(jogadores) <= 40);

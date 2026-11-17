@@ -25,10 +25,26 @@
     cartoes.push(c.innerText.replace(/Player match analysis[\s\S]*?(?=Match #)/, "").slice(0, 6000));
   }
   const cabecalho = (document.querySelector("main") || document.body).innerText.slice(0, 600);
-  const pacote = { v: 1, url: location.href, tz: new Date().getTimezoneOffset(), lingua: navigator.language, cabecalho, cartoes };
+  /* aba Players: totais da temporada de cada jogador (o tracker só guarda as 10 últimas partidas) */
+  aviso.textContent = "EC OXE: lendo os números da temporada…";
+  const aba = [...document.querySelectorAll("button")].find(x => /Players/.test(x.textContent) && x.textContent.length < 20);
+  const elenco = [], mapa = [];
+  if (aba) {
+    aba.click(); await espera(2500);
+    for (const h of document.querySelectorAll("main h4")) {
+      const card = h.closest(".rounded-xl");
+      if (card && /Games/.test(card.innerText)) elenco.push({ nome: h.textContent.trim(), pos: (card.querySelector("span") || {}).textContent || "", texto: card.innerText.slice(0, 1500) });
+    }
+    /* o comparador de jogadores liga o nome no jogo ao PSN */
+    const h2h = [...document.querySelectorAll("button, a, div")].find(x => /Player head to head/.test(x.textContent) && x.textContent.length < 80);
+    if (h2h) { h2h.click(); await espera(2500); }
+    const sel = document.querySelector("select");
+    if (sel) for (const o of sel.options) if (o.value) mapa.push({ nome: o.textContent.trim(), psn: o.value });
+  }
+  const pacote = { v: 2, url: location.href, tz: new Date().getTimezoneOffset(), lingua: navigator.language, cabecalho, cartoes, elenco, mapa };
   const destino = PAINEL + "#importar=" + encodeURIComponent(JSON.stringify(pacote));
   aviso.innerHTML = "";
-  const t = document.createElement("div"); t.textContent = `EC OXE: ${cartoes.length} partida(s) lida(s).`; t.style.marginBottom = "10px";
+  const t = document.createElement("div"); t.textContent = `EC OXE: ${cartoes.length} partida(s) e ${elenco.length} jogador(es) lidos.`; t.style.marginBottom = "10px";
   const ir = document.createElement("button"); ir.textContent = "Enviar para o painel do EC OXE";
   ir.style.cssText = "background:#f0c75e;color:#1a1408;border:0;border-radius:999px;padding:10px 18px;font:600 15px system-ui;cursor:pointer;margin-right:8px";
   ir.onclick = () => { window.open(destino, "_blank", "noopener"); aviso.remove(); };

@@ -511,6 +511,20 @@
       temporada = { id: 1, jogos, v, e, d, gp: gpT ?? 0, gc: gcT ?? 0, divisao: div ? +div[1] : null, sr: sr ? +sr[1] : null };
       if (gpT === null || gcT === null) avisos.push("Não achei gols por jogo/saldo no cabeçalho; gols da temporada ficam 0.");
     } else avisos.push("Não achei V/E/D no cabeçalho do clube; a temporada não será atualizada.");
+    /* aba Players: totais da temporada. O nome no jogo vira PSN pelo comparador do tracker
+       (opções "Carlos JR (25)" = BIGGENDD); nomes repetidos (ex.: dois "L. Gantois") seguem a mesma ordem. */
+    if (temporada && Array.isArray(pacote.elenco) && pacote.elenco.length) {
+      const fila = {};
+      (pacote.mapa || []).forEach(m => { const n = String(m.nome).replace(/\s*\(\d*\)\s*$/, "").trim().toLowerCase(); (fila[n] = fila[n] || []).push(String(m.psn).slice(0, 40)); });
+      const valor = (texto, rotulo) => { const m = String(texto).match(new RegExp("([\\d.]+)%?\\s*\\n+\\s*" + rotulo + "\\b")); return m ? Number(m[1]) : 0; };
+      temporada.jogadores = pacote.elenco.slice(0, 40).map(c => {
+        const nome = String(c.nome).trim().slice(0, 40), psn = (fila[nome.toLowerCase()] || []).shift() || "";
+        if (!psn) avisos.push(`Jogador "${nome}" sem PSN no tracker; ficou de fora.`);
+        const ovr = (String(c.texto).match(/OVR\s+(\d+)/) || [])[1];
+        return { psn, nome_jogo: nome, pos: String(c.pos || "").trim().slice(0, 4), ovr: Number(ovr) || 0,
+          jogos: valor(c.texto, "Games"), gols: valor(c.texto, "Goals"), assist: valor(c.texto, "Assists"), mvp: valor(c.texto, "MOTM"), nota: valor(c.texto, "Avg Rating") };
+      }).filter(j => j.psn);
+    } else if (temporada) avisos.push("Não vieram os números da aba Players (favorito antigo?). Arraste o favorito de novo para a barra.");
     return { partidas: partidasLidas, temporada, avisos };
   }
 
@@ -543,6 +557,7 @@
         <h3>Importar do tracker</h3>
         ${lido.avisos.length ? `<div class="msg err" style="margin:0 0 14px">${lido.avisos.map(esc).join("<br>")}</div>` : ""}
         ${lido.temporada ? `<p class="sec-sub" style="margin:0 0 10px"><b>Temporada:</b> ${lido.temporada.jogos} jogos · ${lido.temporada.v}V ${lido.temporada.e}E ${lido.temporada.d}D · ${lido.temporada.gp} gols pró x ${lido.temporada.gc} contra · Divisão ${esc(lido.temporada.divisao ?? "-")} · SR ${esc(lido.temporada.sr ?? "-")}</p>` : ""}
+        ${lido.temporada && lido.temporada.jogadores && lido.temporada.jogadores.length ? `<p class="sec-sub" style="margin:0 0 10px"><b>Jogadores na temporada:</b> ${lido.temporada.jogadores.filter(j => j.jogos > 0).map(j => `${esc(nomeDe(j.psn))} ${j.jogos}J ${j.gols}G ${j.assist}A ${j.mvp}MVP`).join(" · ")}</p>` : ""}
         <p class="sec-sub" style="margin:0 0 14px">${lido.partidas.length} partida(s) lida(s): <b>${novos} nova(s)</b>, ${lido.partidas.length - novos} já no banco (serão atualizadas).</p>
         ${lido.partidas.map(p => `<div class="adm-row panel" style="display:block">
           <b>${esc(clube.nome)} ${p.gp}–${p.gc} ${esc(p.adv)}</b> <small class="by">· ${esc(p.comp)} · nº ${esc(p.id)} · ${quando(p.data)}${noBanco.some(x => x.id === p.id) ? "" : " · <b>nova</b>"}</small>
