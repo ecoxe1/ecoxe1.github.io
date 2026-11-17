@@ -245,3 +245,6 @@ drop policy if exists "admin altera media" on storage.objects;
 create policy "admin altera media" on storage.objects for update to authenticated using (bucket_id = 'media' and private.is_admin());
 drop policy if exists "admin apaga media" on storage.objects;
 create policy "admin apaga media" on storage.objects for delete to authenticated using (bucket_id = 'media' and private.is_admin());
+-- Trocar e apagar só alcançam arquivos que o SELECT deixa ver (migração 07).
+drop policy if exists "admin le media" on storage.objects;
+create policy "admin le media" on storage.objects for select to authenticated using (bucket_id = 'media' and private.is_admin());
