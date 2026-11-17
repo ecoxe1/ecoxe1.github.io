@@ -113,6 +113,7 @@ function listaPartidas(el, lista) {
       <div><span>⚽ Gols</span><b>${agrupa(m.gols || [])}</b></div>
       <div><span>🅰️ Assistências</span><b>${agrupa(m.assist || [])}</b></div>
       <div><span>⭐ Melhor em campo</span><b>${esc(m.mvp || "-")}</b></div>
+      ${m.obs ? `<div class="obs"><span>ℹ️ Obs.</span><b>${esc(m.obs)}</b></div>` : ""}
     </div>`);
     row.classList.add("open"); head.setAttribute("aria-expanded", "true");
   };

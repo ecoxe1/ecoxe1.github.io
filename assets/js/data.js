@@ -19,7 +19,8 @@ const clube = {
   twitch: "",
   tracker: "https://proclubstracker.com/club/2210096?platform=common-gen5",
   /* Números da temporada inteira, do tracker (a lista de partidas abaixo tem só os jogos mais recentes).
-     Gols marcados e sofridos calculados pela média do tracker (2,67 por jogo) e pelo saldo (+2). */
+     O tracker não mostra o total de gols, mas ele sai exato da média e do saldo: 2,67 x 27 jogos = 72
+     (71 daria 2,63 e 73 daria 2,70) e 72 - 2 = 70 sofridos. Ao atualizar, refaça a conta. */
   temporada: { jogos: 27, v: 11, e: 5, d: 11, gp: 72, gc: 70, divisao: 3, sr: 1506 },
 };
 
@@ -43,18 +44,20 @@ const elenco = [
 
 /* ---------- Partidas (do Pro Clubs Tracker) ----------
    A mais recente no TOPO. id = número da partida no tracker.
-   gols / assist: nomes do elenco (repetido = mais de um). mvp vazio = o melhor em campo foi do adversário. */
+   data: horário de Brasília, com "-03:00" no fim (o tracker mostra no fuso de quem abre a página).
+   gols / assist: nomes do elenco (repetido = mais de um). mvp vazio = o melhor em campo foi do adversário.
+   obs: aviso opcional, aparece ao abrir a partida (ex.: vitória por W.O.). */
 const partidas = [
-  {id:"400169", data:"2026-11-16T22:32", adv:"Royal Madridd", comp:"Liga", gp:1, gc:1, gols:["PeuIvo27"], assist:["BIGGENDD"], mvp:"RP_BBMP"},
-  {id:"650018", data:"2026-11-16T22:15", adv:"El Mango", comp:"Liga", gp:0, gc:0, gols:[], assist:[], mvp:""},
-  {id:"800261", data:"2026-11-16T22:09", adv:"The Burb United", comp:"Liga", gp:2, gc:3, gols:["BIGGENDD","JygOk"], assist:["BIGGENDD"], mvp:"Diegomengo0313"},
-  {id:"160450", data:"2026-11-15T04:05", adv:"Fc delvaux", comp:"Liga", gp:6, gc:0, gols:["L. Gantois","L. Gantois","L. Gantois","Monkeyvader91","JygOk","JygOk"], assist:["L. Gantois","L. Gantois","L. Gantois","Monkeyvader91","Monkeyvader91","JygOk"], mvp:"L. Gantois"},
-  {id:"100340", data:"2026-11-15T03:48", adv:"The JLA", comp:"Liga", gp:7, gc:2, gols:["L. Gantois","L. Gantois","L. Gantois","L. Gantois","L. Gantois","L. Gantois","JygOk"], assist:["L. Gantois","Monkeyvader91","Monkeyvader91","Monkeyvader91","Monkeyvader91","JygOk"], mvp:"L. Gantois"},
-  {id:"240385", data:"2026-11-15T03:27", adv:"Des Sources FC", comp:"Liga", gp:3, gc:4, gols:["L. Gantois","L. Gantois","L. Gantois"], assist:["Monkeyvader91","Monkeyvader91","deGoose14"], mvp:"Monkeyvader91"},
-  {id:"670070", data:"2026-11-15T03:11", adv:"EMPIRE SBZ", comp:"Liga", gp:2, gc:0, gols:["JygOk","L. Gantois"], assist:["Monkeyvader91"], mvp:"Monkeyvader91"},
-  {id:"760001", data:"2026-11-15T02:55", adv:"Los Cholos 504", comp:"Liga", gp:3, gc:4, gols:["JygOk","L. Gantois","L. Gantois"], assist:["Monkeyvader91","Monkeyvader91","L. Gantois"], mvp:""},
-  {id:"210350", data:"2026-11-15T02:33", adv:"Tri of Death", comp:"Liga", gp:2, gc:4, gols:["L. Gantois","L. Gantois"], assist:["Monkeyvader91"], mvp:"Balbenadal"},
-  {id:"030139", data:"2026-11-15T02:18", adv:"Tumbados CDF", comp:"Liga", gp:3, gc:0, gols:["Balbenadal","L. Gantois"], assist:["Monkeyvader91","L. Gantois"], mvp:""},
+  {id:"400169", data:"2026-11-16T22:32-03:00", adv:"Royal Madridd", comp:"Liga", gp:1, gc:1, gols:["PeuIvo27"], assist:["BIGGENDD"], mvp:"RP_BBMP"},
+  {id:"650018", data:"2026-11-16T22:15-03:00", adv:"El Mango", comp:"Liga", gp:0, gc:0, gols:[], assist:[], mvp:""},
+  {id:"800261", data:"2026-11-16T22:09-03:00", adv:"The Burb United", comp:"Liga", gp:2, gc:3, gols:["BIGGENDD","JygOk"], assist:["BIGGENDD"], mvp:"Diegomengo0313"},
+  {id:"160450", data:"2026-11-15T04:05-03:00", adv:"Fc delvaux", comp:"Liga", gp:6, gc:0, gols:["L. Gantois","L. Gantois","L. Gantois","Monkeyvader91","JygOk","JygOk"], assist:["L. Gantois","L. Gantois","L. Gantois","Monkeyvader91","Monkeyvader91","JygOk"], mvp:"L. Gantois"},
+  {id:"100340", data:"2026-11-15T03:48-03:00", adv:"The JLA", comp:"Liga", gp:7, gc:2, gols:["L. Gantois","L. Gantois","L. Gantois","L. Gantois","L. Gantois","L. Gantois","JygOk"], assist:["L. Gantois","Monkeyvader91","Monkeyvader91","Monkeyvader91","Monkeyvader91","JygOk"], mvp:"L. Gantois"},
+  {id:"240385", data:"2026-11-15T03:27-03:00", adv:"Des Sources FC", comp:"Liga", gp:3, gc:4, gols:["L. Gantois","L. Gantois","L. Gantois"], assist:["Monkeyvader91","Monkeyvader91","deGoose14"], mvp:"Monkeyvader91"},
+  {id:"670070", data:"2026-11-15T03:11-03:00", adv:"EMPIRE SBZ", comp:"Liga", gp:2, gc:0, gols:["JygOk","L. Gantois"], assist:["Monkeyvader91"], mvp:"Monkeyvader91"},
+  {id:"760001", data:"2026-11-15T02:55-03:00", adv:"Los Cholos 504", comp:"Liga", gp:3, gc:4, gols:["JygOk","L. Gantois","L. Gantois"], assist:["Monkeyvader91","Monkeyvader91","L. Gantois"], mvp:""},
+  {id:"210350", data:"2026-11-15T02:33-03:00", adv:"Tri of Death", comp:"Liga", gp:2, gc:4, gols:["L. Gantois","L. Gantois"], assist:["Monkeyvader91"], mvp:"Balbenadal"},
+  {id:"030139", data:"2026-11-15T02:18-03:00", adv:"Tumbados CDF", comp:"Liga", gp:3, gc:0, gols:["Balbenadal","L. Gantois"], assist:["Monkeyvader91","L. Gantois"], mvp:"", obs:"Vitória por W.O.: o adversário abandonou a partida quando estava 2–0."},
 ];
 
 /* ---------- Vídeos (reserva; poste pelo painel) ----------
@@ -62,17 +65,9 @@ const partidas = [
 const videos = [];
 
 /* ---------- Notícias (reserva; poste pelo painel) ----------
+   Formato: {id:"slug", chapeu:"Clube", titulo:"...", data:"AAAA-MM-DD", autor:"Diretoria", resumo:"...", capa:"", corpo:["parágrafo", ...]}
    corpo: lista de parágrafos. {t:"Subtítulo"} vira subtítulo; {img:"foto.jpg", legenda:"..."} vira foto (assets/news/). */
-const noticias = [
-  {id:"bem-vindos", chapeu:"Clube", titulo:"EC OXE ganha site oficial", data:"2026-10-27", autor:"Diretoria",
-   resumo:"Elenco, resultados, amistosos e recrutamento agora num lugar só.",
-   capa:"",
-   corpo:[
-     "O **EC OXE** agora tem casa própria na internet. Aqui você acompanha os resultados, conhece o elenco e pode pedir um amistoso ou fazer teste para o time.",
-     {t:"Quer jogar com a gente?"},
-     "Vá na página de *Recrutamento*, preencha o formulário e a diretoria entra em contato.",
-   ]},
-];
+const noticias = [];
 
 /* ---------- Recrutamento e amistosos ---------- */
 const recrutamento = {

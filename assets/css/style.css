@@ -116,6 +116,7 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;
 .mrow.open .chev{transform:rotate(90deg)}
 .mdetail{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:0 4px 16px}
 .mdetail div{background:var(--panel2);border-radius:10px;padding:10px 12px}
+.mdetail .obs{grid-column:1/-1}
 .mdetail span{display:block;font-size:12px;color:var(--muted)}
 .mdetail b{font-weight:600;color:var(--cream);font-size:14px}
 @media (max-width:600px){.mdetail{grid-template-columns:1fr}}
