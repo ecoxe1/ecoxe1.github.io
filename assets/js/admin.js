@@ -113,8 +113,8 @@
     const repetidas = {};
     data.filter(x => x.status === "pendente").forEach(x => { const k = String(x.psn).toLowerCase(); repetidas[k] = (repetidas[k] || 0) + 1; });
     const selo = c => { const t = c.status === "pendente" && repetidas[String(c.psn).toLowerCase()]; return t > 1 ? ` <span class="adm-badge pendente" title="Mesmo ID em mais de uma candidatura pendente">${t} com este ID</span>` : ""; };
-    q("#aba").innerHTML = `<p class="sec-sub">${n("pendente")} pendente(s) · ${n("aprovado")} aprovada(s) · ${n("recusado")} recusada(s)</p>` + (data.length ? data.map(c => `
-      <div class="panel adm-item" data-id="${esc(c.id)}">
+    const card = c => `
+      <div class="panel adm-item" data-id="${esc(c.id)}" data-status="${esc(c.status)}">
         <div class="adm-head"><h3>${esc(c.psn)}${c.nick ? ` <small>(${esc(c.nick)})</small>` : ""}${selo(c)}</h3><span class="adm-badge ${esc(c.status)}">${esc(c.status)}</span></div>
         <dl class="adm-dl">
           <dt>Posição</dt><dd>${esc(c.posicao)}${c.posicao2 ? " / " + esc(c.posicao2) : ""}</dd>
@@ -128,11 +128,13 @@
           <dt>Enviada</dt><dd>${quando(c.created_at)}</dd>
         </dl>
         <div class="fgrid">
-          <div><label>Situação</label><select data-f="status">${["pendente", "aprovado", "recusado"].map(s => `<option${s === c.status ? " selected" : ""}>${s}</option>`).join("")}</select></div>
+          <div><label>Situação</label><select data-f="status">${["pendente", "aprovado", "recusado", "arquivado"].map(s => `<option${s === c.status ? " selected" : ""}>${s}</option>`).join("")}</select></div>
           <div><label>Anotação da diretoria</label><input data-f="nota_admin" value="${esc(c.nota_admin || "")}"></div>
         </div>
-        <div class="factions"><button class="btn btn-gold btn-sm" data-salvar>Salvar</button><button class="btn btn-ghost btn-sm" data-apagar>Apagar</button></div>
-      </div>`).join("") : `<div class="empty-state">Nenhuma candidatura ainda.</div>`);
+        ${botoes(c.status)}
+      </div>`;
+    q("#aba").innerHTML = `<p class="sec-sub">${n("pendente")} pendente(s) · ${n("aprovado")} aprovada(s) · ${n("recusado")} recusada(s) · ${n("arquivado")} arquivada(s)</p>`
+      + listaComArquivo(data, card, "Nenhuma candidatura ainda.", "Arquivadas");
     liga("candidaturas", abaCandidaturas);
   }
 
@@ -142,8 +144,8 @@
     const { data, error } = await sb.from("amistosos").select("*").order("data", { ascending: false }).order("hora", { ascending: false });
     if (!valendo()) return;
     if (error) throw error;
-    q("#aba").innerHTML = `<p class="sec-sub">Mude para <b>confirmado</b> para o jogo aparecer na agenda pública. Depois do jogo, marque <b>realizado</b> e coloque o placar.</p>` + (data.length ? data.map(a => `
-      <div class="panel adm-item" data-id="${esc(a.id)}">
+    const card = a => `
+      <div class="panel adm-item" data-id="${esc(a.id)}" data-status="${esc(a.status)}">
         <div class="adm-head"><h3>${esc(clube.nome)} x ${esc(a.time)}</h3><span class="adm-badge ${esc(a.status)}">${esc(a.status)}</span></div>
         <dl class="adm-dl">
           <dt>Dia e horário</dt><dd>${dataCurta(a.data)} às ${esc(String(a.hora).slice(0, 5))}${a.data2 ? ` · outra opção: ${dataCurta(a.data2)} às ${esc(String(a.hora2 || "").slice(0, 5))}` : ""}</dd>
@@ -154,18 +156,54 @@
           <dt>Pedido em</dt><dd>${quando(a.created_at)}</dd>
         </dl>
         <div class="fgrid">
-          <div><label>Situação</label><select data-f="status">${["pendente", "confirmado", "realizado", "recusado"].map(s => `<option${s === a.status ? " selected" : ""}>${s}</option>`).join("")}</select></div>
+          <div><label>Situação</label><select data-f="status">${["pendente", "confirmado", "realizado", "recusado", "arquivado"].map(s => `<option${s === a.status ? " selected" : ""}>${s}</option>`).join("")}</select></div>
           <div><label>Dia / horário combinados</label><div style="display:flex;gap:8px"><input type="date" data-f="data" value="${a.data}"><input type="time" data-f="hora" value="${String(a.hora).slice(0, 5)}"></div></div>
           <div><label>Placar: ${esc(clube.nome)}</label><input type="number" min="0" data-f="placar_nos" value="${a.placar_nos ?? ""}"></div>
           <div><label>Placar: ${esc(a.time)}</label><input type="number" min="0" data-f="placar_eles" value="${a.placar_eles ?? ""}"></div>
           <div class="full"><label>Anotação da diretoria</label><input data-f="nota_admin" value="${esc(a.nota_admin || "")}"></div>
         </div>
-        <div class="factions"><button class="btn btn-gold btn-sm" data-salvar>Salvar</button><button class="btn btn-ghost btn-sm" data-apagar>Apagar</button></div>
-      </div>`).join("") : `<div class="empty-state">Nenhum pedido de amistoso ainda.</div>`);
+        ${botoes(a.status)}
+      </div>`;
+    q("#aba").innerHTML = `<p class="sec-sub">Mude para <b>confirmado</b> para o jogo aparecer na agenda pública. Depois do jogo, marque <b>realizado</b> e coloque o placar. Arquivado sai da agenda pública.</p>`
+      + listaComArquivo(data, card, "Nenhum pedido de amistoso ainda.", "Arquivados");
     liga("amistosos", abaAmistosos);
   }
 
-  /* Salvar e apagar nos cartões de candidaturas e amistosos */
+  /* Arquivar em vez de apagar: o item sai da lista principal e fica numa gaveta "Arquivados".
+     Só o que já está arquivado mostra "Apagar de vez". */
+  const botoes = status => `<div class="factions"><button class="btn btn-gold btn-sm" data-salvar>Salvar</button>${status === "arquivado"
+    ? `<button class="btn btn-ghost btn-sm" data-desarquivar>Desarquivar</button><button class="btn btn-perigo btn-sm" data-apagar>Apagar de vez</button>`
+    : `<button class="btn btn-ghost btn-sm" data-arquivar>Arquivar</button>`}</div>`;
+  const listaComArquivo = (data, card, vazio, rotulo) => {
+    if (!data.length) return `<div class="empty-state">${vazio}</div>`;
+    const ativos = data.filter(x => x.status !== "arquivado"), arq = data.filter(x => x.status === "arquivado");
+    return (ativos.length ? ativos.map(card).join("") : `<div class="empty-state">Nada fora do arquivo.</div>`)
+      + (arq.length ? `<details class="adm-arq"><summary>${rotulo} (${arq.length})</summary>${arq.map(card).join("")}</details>` : "");
+  };
+
+  /* Caixa de confirmação do painel (no lugar de confirm() e prompt() do navegador).
+     Devolve true/false; com "campo", devolve o texto digitado (ou null se cancelar). Esc = cancelar. */
+  function pergunta({ titulo, texto = "", ok = "Confirmar", perigo = false, campo = null }) {
+    return new Promise(resolve => {
+      const d = document.createElement("dialog");
+      d.className = "adm-dlg";
+      d.setAttribute("aria-labelledby", "dlg-titulo");
+      d.innerHTML = `<form method="dialog"><h3 id="dlg-titulo">${esc(titulo)}</h3>${texto ? `<p class="sec-sub">${esc(texto)}</p>` : ""}
+        ${campo ? `<label for="dlg-campo">${esc(campo)}</label><input id="dlg-campo" maxlength="120" autocomplete="off">` : ""}
+        <div class="factions"><button class="btn ${perigo ? "btn-perigo" : "btn-gold"}" value="ok">${esc(ok)}</button><button class="btn btn-ghost" value="cancela">Cancelar</button></div></form>`;
+      document.body.appendChild(d);
+      d.addEventListener("close", () => {
+        const sim = d.returnValue === "ok", texto = campo ? d.querySelector("#dlg-campo").value.trim() : null;
+        d.remove();
+        resolve(campo ? (sim ? texto : null) : sim);
+      });
+      d.showModal();
+      /* foco: no campo, se houver; senão em Cancelar (Enter sem querer não apaga nada) */
+      (d.querySelector("#dlg-campo") || d.querySelector('[value="cancela"]')).focus();
+    });
+  }
+
+  /* Salvar, arquivar e apagar nos cartões de candidaturas e amistosos */
   function liga(tabela, recarrega) {
     qa(".adm-item").forEach(card => {
       const id = card.dataset.id;
@@ -178,8 +216,18 @@
         if (error) return falhou(error, "Erro ao salvar: ");
         diga("Salvo!"); recarrega();
       };
-      card.querySelector("[data-apagar]").onclick = async () => {
-        if (!confirm("Apagar de vez? Não dá para desfazer.")) return;
+      const muda = async (status, msg) => {
+        const { error } = await sb.from(tabela).update({ status }).eq("id", id);
+        if (error) return falhou(error, "Erro: ");
+        diga(msg); recarrega();
+      };
+      const arquivar = card.querySelector("[data-arquivar]");
+      if (arquivar) arquivar.onclick = () => muda("arquivado", "Arquivado. Está na gaveta no fim da lista.");
+      const desarquivar = card.querySelector("[data-desarquivar]");
+      if (desarquivar) desarquivar.onclick = () => muda("pendente", "Voltou para a lista como pendente.");
+      const apagar = card.querySelector("[data-apagar]");
+      if (apagar) apagar.onclick = async () => {
+        if (!await pergunta({ titulo: "Apagar de vez?", texto: "Some do banco e não dá para desfazer.", ok: "Apagar de vez", perigo: true })) return;
         const { error } = await sb.from(tabela).delete().eq("id", id);
         if (error) return falhou(error, "Erro ao apagar: ");
         diga("Apagado."); recarrega();
@@ -222,7 +270,7 @@
       diga("Enviando foto…");
       try {
         const url = await envia(arq, "news");
-        const leg = prompt("Legenda da foto (opcional):") || "";
+        const leg = (await pergunta({ titulo: "Foto enviada", texto: "Escreva uma legenda, se quiser. Cancelar insere a foto sem legenda.", campo: "Legenda (opcional)", ok: "Inserir" })) || "";
         f.corpo.value = f.corpo.value.replace(/\s*$/, "") + `\n\n![${leg.replace(/[\[\]]/g, "")}](${url})\n\n`;
         diga("Foto inserida no texto.");
       } catch (err) { falhou(err, "Erro ao enviar foto: "); }
@@ -244,9 +292,9 @@
         diga(a ? "Notícia atualizada!" : "Notícia publicada!"); abaNoticias();
       } catch (err) { btn.disabled = false; btn.textContent = a ? "Salvar alterações" : "Publicar notícia"; falhou(err, "Erro: "); }
     };
-    qa("[data-ed]").forEach(b => b.onclick = () => { abaNoticias(b.dataset.ed); window.scrollTo({ top: 0, behavior: "smooth" }); });
+    qa("[data-ed]").forEach(b => b.onclick = () => { abaNoticias(b.dataset.ed); window.scrollTo({ top: 0, behavior: suave() }); });
     qa("[data-del]").forEach(b => b.onclick = async () => {
-      if (!confirm("Apagar esta notícia de vez?")) return;
+      if (!await pergunta({ titulo: "Apagar esta notícia?", texto: "A notícia e as fotos dela saem do site e do banco. Não dá para desfazer. Para só esconder, edite e desmarque \"Publicada\".", ok: "Apagar", perigo: true })) return;
       const x = data.find(n => n.id === b.dataset.del);
       const { error } = await sb.from("news").delete().eq("id", b.dataset.del);
       if (error) return falhou(error, "Erro ao apagar: ");
@@ -312,9 +360,9 @@
         diga(v ? "Vídeo atualizado!" : "Vídeo publicado!"); abaVideos();
       } catch (err) { btn.disabled = false; btn.textContent = v ? "Salvar alterações" : "Publicar vídeo"; falhou(err, "Erro: "); }
     };
-    qa("[data-ed]").forEach(b => b.onclick = () => { abaVideos(b.dataset.ed); window.scrollTo({ top: 0, behavior: "smooth" }); });
+    qa("[data-ed]").forEach(b => b.onclick = () => { abaVideos(b.dataset.ed); window.scrollTo({ top: 0, behavior: suave() }); });
     qa("[data-del]").forEach(b => b.onclick = async () => {
-      if (!confirm("Apagar este vídeo de vez?")) return;
+      if (!await pergunta({ titulo: "Apagar este vídeo?", texto: "O vídeo (e o arquivo, se foi enviado pelo painel) sai do site e do banco. Não dá para desfazer. Para só esconder, edite e desmarque \"Publicado\".", ok: "Apagar", perigo: true })) return;
       const x = data.find(n => n.id === b.dataset.del);
       const { error } = await sb.from("videos").delete().eq("id", b.dataset.del);
       if (error) return falhou(error, "Erro ao apagar: ");

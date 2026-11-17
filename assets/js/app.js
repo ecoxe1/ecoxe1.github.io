@@ -7,6 +7,10 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const urlHttp = u => { const s = String(u ?? "").trim(); return /^https?:\/\/\S+$/i.test(s) ? s : ""; };
 /* Mensagem de campo grande demais ("" = ok). Os máximos espelham os CHECK de supabase/schema.sql. */
 const limite = (valor, max, nome) => String(valor || "").length > max ? `${nome}: use no máximo ${max} caracteres (agora são ${String(valor).length}).` : "";
+/* Validação na ordem dos campos: [[nomeDoCampo, mensagemOuVazio], ...] -> o primeiro erro, com o campo para receber o foco. */
+const primeiroErro = lista => { const e = lista.find(([, m]) => m); return e ? { campo: e[0], msg: e[1] } : null; };
+/* Rolagem suave só para quem não pediu menos movimento no sistema. */
+const suave = () => (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) ? "auto" : "smooth";
 const pad = n => String(n).padStart(2, "0");
 const plural = (n, s, p) => `${n} ${n === 1 ? s : (p || s + "s")}`;
 const MESES = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
@@ -14,7 +18,12 @@ const SEMANA = ["domingo","segunda","terça","quarta","quinta","sexta","sábado"
 const dia = s => { const [y, m, d] = s.slice(0, 10).split("-").map(Number); return new Date(y, m - 1, d); };
 const dataLonga = s => { const d = dia(s); return `${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`; };
 const dataCurta = s => { const d = dia(s); return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`; };
-const hojeISO = (() => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; })();
+/* O time joga no horário de Brasília (sem horário de verão desde 2019): "hoje", "ontem" e os horários seguem o fuso de lá,
+   mesmo para quem abre o site de outro país. */
+const FUSO = "America/Sao_Paulo";
+const emBrasilia = d => { try { const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: FUSO, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(d).map(x => [x.type, x.value])); return { iso: `${p.year}-${p.month}-${p.day}`, hora: `${p.hour}:${p.minute}` }; } catch (e) { return { iso: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, hora: `${pad(d.getHours())}:${pad(d.getMinutes())}` }; } };
+const hojeISO = emBrasilia(new Date()).iso;
+const noPassado = (data, hora) => new Date(`${data}T${hora}:00-03:00`) < new Date(); /* data e hora digitadas valem como horário de Brasília */
 const SB = window.SUPABASE || {}, nuvem = !!(SB.url && SB.key);
 const sbHeaders = extra => Object.assign({ apikey: SB.key }, SB.key && SB.key.startsWith("eyJ") ? { Authorization: "Bearer " + SB.key } : {}, extra);
 const sbGet = (tabela, consulta) => fetch(`${SB.url}/rest/v1/${tabela}?${consulta}`, { headers: sbHeaders() }).then(r => r.ok ? r.json() : Promise.reject(new Error(tabela + ": " + r.status)));
@@ -48,12 +57,20 @@ const fmt = s => esc(s)
 const PAGINAS = [["index.html","inicio","Início"],["elenco.html","elenco","Elenco"],["partidas.html","partidas","Partidas"],["amistosos.html","amistosos","Amistosos"],["videos.html","videos","Vídeos"],["noticias.html","noticias","Notícias"],["recrutamento.html","recrutamento","Recrutamento"]];
 $("#nav").innerHTML = `
   <div class="wrap">
-    <a href="index.html" class="brand"><img src="assets/img/escudo.webp" alt="">${esc(clube.nome)}</a>
-    <button class="menu-btn" type="button" aria-label="Abrir menu" aria-expanded="false">☰</button>
-    <div class="links">${PAGINAS.map(([h, k, l]) => `<a href="${h}"${k === page ? ' class="active" aria-current="page"' : ""}>${l}</a>`).join("")}</div>
+    <a href="index.html" class="brand"><img src="assets/img/escudo-96.webp" alt="" width="40" height="40">${esc(clube.nome)}</a>
+    <button class="menu-btn" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="menu-links">☰</button>
+    <div class="links" id="menu-links">${PAGINAS.map(([h, k, l]) => `<a href="${h}"${k === page ? ' class="active" aria-current="page"' : ""}>${l}</a>`).join("")}</div>
     <a href="recrutamento.html" class="btn btn-gold btn-sm">Jogar no OXE</a>
   </div>`;
-$(".menu-btn").onclick = e => { const open = $("#nav").classList.toggle("open"); e.currentTarget.setAttribute("aria-expanded", open); };
+const menuBtn = $(".menu-btn");
+const menu = abrir => {
+  $("#nav").classList.toggle("open", abrir);
+  menuBtn.setAttribute("aria-expanded", abrir);
+  menuBtn.setAttribute("aria-label", abrir ? "Fechar menu" : "Abrir menu");
+  menuBtn.textContent = abrir ? "✕" : "☰";
+};
+menuBtn.onclick = () => menu(!$("#nav").classList.contains("open"));
+document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#nav").classList.contains("open")) { menu(false); menuBtn.focus(); } });
 
 const redes = [["Discord", clube.discord], ["Instagram", clube.instagram], ["YouTube", clube.youtube], ["Twitch", clube.twitch], ["Pro Clubs Tracker", clube.tracker]].filter(([, u]) => u);
 $("#footer").innerHTML = `
@@ -84,19 +101,19 @@ function faixaNumeros(el) {
     .map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join("");
 }
 function sequencia(el, lista) {
-  el.innerHTML = lista.slice(0, 10).map(m => { const r = res(m); return `<span class="chip ${r}" title="${esc(m.adv)}: ${RES[r]} ${m.gp}–${m.gc}">${r}</span>`; }).join("");
+  el.innerHTML = lista.slice(0, 10).map(m => { const r = res(m); return `<span class="chip ${r}" role="img" aria-label="${esc(m.adv)}: ${RES[r]} ${m.gp} a ${m.gc}" title="${esc(m.adv)}: ${RES[r]} ${m.gp}–${m.gc}">${r}</span>`; }).join("");
 }
 function quando(iso) {
-  const d = new Date(iso), diff = Math.round((dia(hojeISO) - dia(iso)) / 864e5);
+  const b = emBrasilia(new Date(iso)), diff = Math.round((dia(hojeISO) - dia(b.iso)) / 864e5);
   const rel = diff <= 0 ? "Hoje" : diff === 1 ? "Ontem" : `Há ${diff} dias`;
-  return `${rel} · ${pad(d.getDate())}/${pad(d.getMonth() + 1)} às ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${rel} · ${b.iso.slice(8, 10)}/${b.iso.slice(5, 7)} às ${b.hora}`;
 }
 const agrupa = nomes => { const c = {}; nomes.forEach(n => c[n] = (c[n] || 0) + 1); return Object.entries(c).map(([n, q]) => esc(n) + (q > 1 ? ` (${q})` : "")).join(", ") || "-"; };
 function listaPartidas(el, lista) {
   el.innerHTML = lista.length ? lista.map(m => { const r = res(m); return `
     <div class="mrow" data-id="${esc(m.id)}">
       <div class="match" role="button" tabindex="0" aria-expanded="false">
-        <span class="chip ${r}" title="${RES[r]}">${r}</span>
+        <span class="chip ${r}" role="img" aria-label="${RES[r]}" title="${RES[r]}">${r}</span>
         <div class="vs">${esc(clube.nome)} x ${esc(m.adv)}${m.comp ? `<span class="tag-comp">${esc(m.comp)}</span>` : ""}<small>${quando(m.data)}</small></div>
         <div class="score">${m.gp}–${m.gc}</div>
         <span class="chev" aria-hidden="true">›</span>
@@ -147,13 +164,20 @@ function carta(p) {
 /* Valida, respeita o tempo de espera, envia ao Supabase se estiver configurado
    e, se não estiver (ou falhar), mostra o texto pronto para copiar e mandar no Discord. */
 function formulario({ form, msg, botao, tabela, chaveEspera, ler, validar, resumo, concluido, textoBotao }) {
-  const mostra = (t, ok) => { msg.hidden = false; msg.className = "msg " + (ok ? "ok" : "err"); msg.textContent = t; };
+  /* Erro usa role="alert" (leitor de tela anuncia na hora); o resto, role="status". */
+  const mostra = (t, ok) => { msg.hidden = false; msg.setAttribute("role", ok ? "status" : "alert"); msg.className = "msg " + (ok ? "ok" : "err"); msg.textContent = t; };
+  const limpaInvalidos = () => form.querySelectorAll("[aria-invalid]").forEach(i => { i.removeAttribute("aria-invalid"); i.removeAttribute("aria-describedby"); });
   form.addEventListener("submit", async e => {
-    e.preventDefault(); msg.hidden = true;
+    e.preventDefault(); msg.hidden = true; limpaInvalidos();
     const v = Object.fromEntries(new FormData(form));
     if (v.hp_campo) { concluido(null); return; } /* campo escondido (nome neutro, para o autofill não preencher): só robôs preenchem */
     const dados = ler(v), erro = validar(dados);
-    if (erro) return mostra(erro);
+    if (erro) {
+      mostra(erro.msg);
+      const campo = form.elements[erro.campo];
+      if (campo && campo.focus) { campo.setAttribute("aria-invalid", "true"); campo.setAttribute("aria-describedby", msg.id); campo.focus(); }
+      return;
+    }
     const espera = ESPERA_FORM * 1000 - (Date.now() - Number(guarda.get(chaveEspera) || 0));
     if (espera > 0) return mostra(`Você acabou de enviar. Aguarde ${Math.ceil(espera / 1000)} segundos para enviar de novo.`);
     const plano = motivo => {
@@ -181,12 +205,13 @@ function formulario({ form, msg, botao, tabela, chaveEspera, ler, validar, resum
   });
 }
 const telaFinal = (box, titulo, texto, itens, botao) => {
-  box.innerHTML = `<div class="panel done"><div class="check" aria-hidden="true">✓</div><h3>${titulo}</h3>
+  box.innerHTML = `<div class="panel done" role="status"><div class="check" aria-hidden="true">✓</div><h3 tabindex="-1" data-foco>${titulo}</h3>
     <p class="sec-sub" style="margin:0 0 16px">${texto}</p>
     ${itens.length ? `<p>${itens.map(([k, v]) => `<b>${esc(k)}:</b> ${esc(v)}`).join("<br>")}</p>` : ""}
     <button class="btn btn-ghost" type="button" data-recarregar>${botao}</button></div>`;
   box.querySelector("[data-recarregar]").addEventListener("click", () => location.reload());
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  box.querySelector("[data-foco]").focus({ preventScroll: true }); /* leitor de tela e teclado vão direto para o "enviado" */
+  window.scrollTo({ top: 0, behavior: suave() });
 };
 
 /* =============================== Páginas =============================== */
@@ -255,7 +280,7 @@ if (page === "videos") conteudoNuvem.then(() => {
     const lista = f === "T" ? ord : ord.filter(v => v.tipo === f);
     $("#vgrid").innerHTML = lista.map(v => { const s = fonte(v); return `
       <button class="vcard" data-id="${esc(v.id)}">
-        <div class="vthumb">${s.capa ? `<img src="${esc(s.capa)}" alt="" loading="lazy">` : `<img class="logo" src="assets/img/escudo.webp" alt="">`}<span class="vplay" aria-hidden="true">▶</span><span class="vbadge">${v.tipo === "partida" ? "Partida" : "Lance"}</span></div>
+        <div class="vthumb">${s.capa ? `<img src="${esc(s.capa)}" alt="" loading="lazy">` : `<img class="logo" src="assets/img/escudo-240.webp" alt="" width="240" height="240">`}<span class="vplay" aria-hidden="true">▶</span><span class="vbadge">${v.tipo === "partida" ? "Partida" : "Lance"}</span></div>
         <div class="vmeta"><h3>${esc(v.titulo)}</h3><span>${dataCurta(v.data)}${v.desc ? " · " + esc(v.desc) : ""}</span></div>
       </button>`; }).join("");
     $("#vnone").hidden = lista.length > 0;
@@ -289,13 +314,13 @@ if (page === "noticias") conteudoNuvem.then(() => {
   const arts = noticias.slice().sort((a, b) => String(b.data).localeCompare(String(a.data)));
   const capa = a => a.capa
     ? `<div class="pimg"><img src="${esc(urlHttp(a.capa) || "assets/news/" + a.capa)}" alt="" loading="lazy"></div>`
-    : `<div class="pimg blank"><img src="assets/img/escudo.webp" alt=""></div>`;
+    : `<div class="pimg blank"><img src="assets/img/escudo-240.webp" alt="" width="240" height="240" loading="lazy"></div>`;
   const cartao = (a, cls = "") => `<a class="story ${cls}" href="#/${esc(a.id)}">${capa(a)}
     <div class="txt"><div class="kick">${esc(a.chapeu)}</div><h2>${esc(a.titulo)}</h2><p>${esc(a.resumo)}</p><div class="by">${esc(a.autor)} · ${dataLonga(a.data)}</div></div></a>`;
   const blocos = a => a.corpo.map(b => typeof b === "string" ? `<p>${fmt(b)}</p>`
     : b.t ? `<h3>${esc(b.t)}</h3>`
     : `<figure><img src="${esc(urlHttp(b.img) || "assets/news/" + b.img)}" alt="${esc(b.legenda || "")}" loading="lazy">${b.legenda ? `<figcaption>${esc(b.legenda)}</figcaption>` : ""}</figure>`).join("");
-  const rota = () => {
+  const rota = trocou => {
     let id = "";
     try { id = decodeURIComponent(location.hash.replace(/^#\/?/, "")); } catch (e) { id = ""; } /* hash malformado (ex.: #/%E0%A4%A) vira a lista, não um erro */
     const a = id && arts.find(x => x.id === id);
@@ -311,10 +336,12 @@ if (page === "noticias") conteudoNuvem.then(() => {
       : arts.length ? `<div class="news-grid">${arts.map((x, i) => cartao(x, i === 0 ? "lead" : "")).join("")}</div>`
       : `<div class="empty-state">A primeira notícia está sendo escrita.</div>`;
     document.title = (a ? a.titulo + " | " : "Notícias | ") + clube.nome;
-    window.scrollTo({ top: 0, behavior: "instant" });
+    window.scrollTo({ top: 0, behavior: "auto" });
+    /* trocou de notícia pelo link: foco no título novo (leitor de tela e teclado não ficam "perdidos") */
+    if (trocou) { const h = a ? $("#paper h1") : $("#head h1"); if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); } }
   };
-  const rotaSegura = () => {
-    try { rota(); } catch (e) {
+  const rotaSegura = ev => {
+    try { rota(!!ev); } catch (e) {
       console.error("Notícias:", e);
       $("#head").hidden = false;
       $("#paper").innerHTML = `<div class="empty-state">Não foi possível mostrar esta notícia agora. <a href="#/">Voltar às notícias</a></div>`;
@@ -336,12 +363,16 @@ if (page === "recrutamento") {
     ler: v => ({ psn: (v.psn || "").trim(), nick: (v.nick || "").trim(), plataforma: v.plataforma || "", posicao: v.posicao || "", posicao2: v.posicao2 || "",
       contato: (v.contato || "").trim(), horarios: (v.horarios || "").trim(), experiencia: v.experiencia || "", clube_anterior: (v.clube_anterior || "").trim(),
       lances: (v.lances || "").trim(), sobre: (v.sobre || "").trim() }),
-    validar: p => limite(p.psn, 40, "ID no jogo") || limite(p.nick, 40, "Como quer ser chamado") || limite(p.contato, 120, "Contato") || limite(p.horarios, 120, "Horários livres")
-      || limite(p.clube_anterior, 60, "Último clube") || limite(p.lances, 300, "Link de lances") || limite(p.sobre, 800, "Fale um pouco de você")
-      || (p.psn.length < 2 ? "Informe o seu ID (PSN ou gamertag)."
-      : !p.posicao ? "Escolha a posição em que você quer jogar."
-      : p.contato.length < 3 ? "Informe um contato (Discord, WhatsApp ou Instagram)."
-      : p.lances && !urlHttp(p.lances) ? "O link dos lances precisa começar com https://" : ""),
+    validar: p => primeiroErro([
+      ["psn", limite(p.psn, 40, "ID no jogo") || (p.psn.length < 2 ? "Informe o seu ID (PSN ou gamertag)." : "")],
+      ["nick", limite(p.nick, 40, "Como quer ser chamado")],
+      ["posicao", !p.posicao ? "Escolha a posição em que você quer jogar." : ""],
+      ["contato", limite(p.contato, 120, "Contato") || (p.contato.length < 3 ? "Informe um contato (Discord, WhatsApp ou Instagram)." : "")],
+      ["horarios", limite(p.horarios, 120, "Horários livres")],
+      ["clube_anterior", limite(p.clube_anterior, 60, "Último clube")],
+      ["lances", limite(p.lances, 300, "Link de lances") || (p.lances && !urlHttp(p.lances) ? "O link dos lances precisa começar com https://" : "")],
+      ["sobre", limite(p.sobre, 800, "Fale um pouco de você")],
+    ]),
     resumo: p => `Candidatura para o ${clube.nome}\nID: ${p.psn} (${p.plataforma})` + (p.nick ? `\nNome: ${p.nick}` : "")
       + `\nPosição: ${p.posicao}` + (p.posicao2 && p.posicao2 !== p.posicao ? ` / ${p.posicao2}` : "") + `\nContato: ${p.contato}`
       + (p.horarios ? `\nHorários: ${p.horarios}` : "") + (p.experiencia ? `\nExperiência: ${p.experiencia}` : "")
@@ -378,15 +409,17 @@ if (page === "amistosos") {
     form: f, msg: $("#amMsg"), botao: $("#amSend"), tabela: "amistosos", chaveEspera: "oxe_am", textoBotao: "Enviar pedido",
     ler: v => ({ time: (v.time || "").trim(), capitao: (v.capitao || "").trim(), contato: (v.contato || "").trim(), plataforma: v.plataforma || "",
       data: v.data, hora: v.hora, data2: v.data2 || null, hora2: v.hora2 || null, divisao: v.divisao || "", jogadores: v.jogadores ? parseInt(v.jogadores, 10) : null, obs: (v.obs || "").trim() }),
-    validar: p => limite(p.time, 60, "Nome do seu time") || limite(p.capitao, 40, "Capitão") || limite(p.contato, 120, "Contato") || limite(p.obs, 600, "Observações")
-      || (p.time.length < 2 ? "Informe o nome do time."
-      : p.capitao.length < 2 ? "Informe o capitão (PSN ou gamertag)."
-      : p.contato.length < 3 ? "Informe um contato (Discord, WhatsApp ou Instagram)."
-      : !p.data || !p.hora ? "Escolha o dia e o horário do amistoso."
-      : new Date(`${p.data}T${p.hora}`) < new Date() ? "Escolha um dia e horário que ainda não passaram."
-      : !!p.data2 !== !!p.hora2 ? "Na segunda opção, preencha dia e horário, ou deixe os dois em branco."
-      : p.data2 && new Date(`${p.data2}T${p.hora2}`) < new Date() ? "A segunda opção precisa ser no futuro."
-      : p.jogadores !== null && !(p.jogadores >= 1 && p.jogadores <= 11) ? "A quantidade de jogadores vai de 1 a 11." : ""),
+    validar: p => primeiroErro([
+      ["time", limite(p.time, 60, "Nome do seu time") || (p.time.length < 2 ? "Informe o nome do time." : "")],
+      ["capitao", limite(p.capitao, 40, "Capitão") || (p.capitao.length < 2 ? "Informe o capitão (PSN ou gamertag)." : "")],
+      ["contato", limite(p.contato, 120, "Contato") || (p.contato.length < 3 ? "Informe um contato (Discord, WhatsApp ou Instagram)." : "")],
+      [!p.data ? "data" : "hora", !p.data || !p.hora ? "Escolha o dia e o horário do amistoso." : ""],
+      ["data", noPassado(p.data, p.hora) ? "Escolha um dia e horário que ainda não passaram." : ""],
+      [!p.data2 ? "data2" : "hora2", !!p.data2 !== !!p.hora2 ? "Na segunda opção, preencha dia e horário, ou deixe os dois em branco." : ""],
+      ["data2", p.data2 && noPassado(p.data2, p.hora2) ? "A segunda opção precisa ser no futuro." : ""],
+      ["jogadores", p.jogadores !== null && !(p.jogadores >= 1 && p.jogadores <= 11) ? "A quantidade de jogadores vai de 1 a 11." : ""],
+      ["obs", limite(p.obs, 600, "Observações")],
+    ]),
     resumo: p => `Pedido de amistoso contra o ${clube.nome}\nTime: ${p.time}\nCapitão: ${p.capitao} (${p.plataforma})\nContato: ${p.contato}\nDia e horário: ${dataCurta(p.data)} às ${p.hora}`
       + (p.data2 ? `\nOutra opção: ${dataCurta(p.data2)} às ${p.hora2}` : "") + (p.divisao ? `\nDivisão: ${p.divisao}` : "")
       + (p.jogadores ? `\nJogadores: ${p.jogadores}` : "") + (p.obs ? `\nObservações: ${p.obs}` : ""),

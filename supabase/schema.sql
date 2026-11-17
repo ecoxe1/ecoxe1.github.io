@@ -36,7 +36,7 @@ create policy "admin ve a si mesmo" on public.admins for select to authenticated
 create table if not exists public.candidaturas (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
-  status text not null default 'pendente' check (status in ('pendente','aprovado','recusado')),
+  status text not null default 'pendente' check (status in ('pendente','aprovado','recusado','arquivado')),
   psn text not null check (char_length(psn) between 2 and 40),
   nick text check (char_length(nick) <= 40),
   plataforma text check (char_length(plataforma) <= 30),
@@ -71,7 +71,7 @@ alter table public.candidaturas enable row level security;
 create table if not exists public.amistosos (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
-  status text not null default 'pendente' check (status in ('pendente','confirmado','realizado','recusado')),
+  status text not null default 'pendente' check (status in ('pendente','confirmado','realizado','recusado','arquivado')),
   time text not null check (char_length(time) between 2 and 60),
   capitao text not null check (char_length(capitao) between 2 and 40),
   contato text not null check (char_length(contato) between 3 and 120),

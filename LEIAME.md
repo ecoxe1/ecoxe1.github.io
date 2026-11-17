@@ -19,9 +19,11 @@ Não apague o arquivo `CNAME` do repositório, senão o domínio para de funcion
 | `assets/css/style.css` | Visual. As cores ficam no topo (`--gold`, `--bg`...) |
 | `assets/js/vendor/supabase-2.118.0.min.js` | Biblioteca do Supabase usada só no painel, hospedada aqui (sem CDN). Para atualizar, troque o arquivo e o nome no `admin.html` |
 | `supabase/schema.sql` | Banco completo para uma instalação **nova** (tabelas, regras de segurança, limite de envios e pasta de fotos) |
-| `supabase/migrations/` | Alterações para um banco que **já existe**. Rode na ordem do nome (`01` a `09`) no SQL Editor. As 01 a 09 já foram rodadas no projeto `ec-oxe` em 17/11/2026 |
+| `supabase/migrations/` | Alterações para um banco que **já existe**. Rode na ordem do nome (`01` a `10`) no SQL Editor. As 01 a 10 já foram rodadas no projeto `ec-oxe` em 17/11/2026 |
 | `supabase/verificacao.sql` | Conferência só de leitura, para rodar depois das migrações |
-| `tools/atualiza-head.js` | Gera o trecho comum do `<head>` das 8 páginas (CSP, fontes, ícone) e troca o `?v=N` |
+| `tools/atualiza-head.js` | Gera o trecho comum do `<head>` das 8 páginas (CSP, fontes, ícones, prévia de compartilhamento) e troca o `?v=N` |
+| `tools/check-data.js` | Confere o `data.js` (placar x gols, nomes do elenco, somas, V+E+D). Rode antes de commitar |
+| `assets/img/` | `escudo-96/240/640.webp` (logo, miniaturas e destaque), `favicon-32.png`, `apple-touch-icon.png`, `icon-192/512.png` e `og-1200x630.jpg` (prévia no WhatsApp/Discord) |
 | `_config.yml` | Diz ao GitHub Pages o que **não** publicar: `supabase/`, `tools/`, este LEIAME e os `.txt` |
 | `.gitignore` | Arquivos locais que nunca vão para o repositório (listas de tarefas `.txt`) |
 
@@ -32,7 +34,8 @@ Acesse https://ecoxe.club/admin.html e entre com o e-mail e a senha de administr
 - **Candidaturas:** veja quem quer entrar, aprove ou recuse e anote. O selo "N com este ID" avisa quando o mesmo ID mandou mais de uma (o site não conta isso ao visitante).
 - **Segurança:** "Sair" desconecta só este aparelho; o painel sai sozinho depois de 30 minutos parado e não abre dentro de outro site.
 - **Amistosos:** confirme o pedido (ele aparece na agenda pública), depois marque como realizado e coloque o placar.
-- **Notícias e Vídeos:** publique com foto ou vídeo, sem mexer em código.
+- **Arquivar:** candidaturas e amistosos não se apagam direto. "Arquivar" manda o item para a gaveta "Arquivados" no fim da lista (amistoso arquivado sai da agenda pública); lá dentro ficam "Desarquivar" e "Apagar de vez".
+- **Notícias e Vídeos:** publique com foto ou vídeo, sem mexer em código. Para esconder sem apagar, edite e desmarque "Publicada". Apagar também tira do Storage as fotos e vídeos enviados pelo painel.
 
 ## Supabase
 
@@ -57,7 +60,8 @@ Acesse https://ecoxe.club/admin.html e entre com o e-mail e a senha de administr
 ## Atualizar dados fixos
 
 Elenco e partidas ficam em `assets/js/data.js`. Os números da página inicial são calculados a partir das partidas.
-Ao trocar CSS ou JS, aumente a versão para o navegador não usar a antiga: `node tools/atualiza-head.js 8` (troca o `?v=N` das 8 páginas; o número atual está no link do `style.css`).
+Horários das partidas em horário de Brasília, com `-03:00` no fim. Antes de commitar, rode `node tools/check-data.js`: ERRO precisa corrigir, AVISO é só para conferir.
+Ao trocar CSS ou JS, aumente a versão para o navegador não usar a antiga: `node tools/atualiza-head.js 9` (troca o `?v=N` das 8 páginas; o número atual está no link do `style.css`).
 
 ## Ver no computador antes de publicar
 
