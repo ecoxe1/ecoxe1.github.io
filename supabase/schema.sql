@@ -187,6 +187,8 @@ grant execute on function public.is_admin() to anon, authenticated;
 grant select on public.news, public.videos to anon, authenticated;
 grant select, insert, update, delete on public.news, public.videos to authenticated;
 grant select on public.admins to authenticated;
+-- Projetos novos do Supabase dão ao visitante TRUNCATE/TRIGGER/REFERENCES por padrão; ele nunca precisa disso.
+revoke insert, update, delete, truncate, references, trigger on public.news, public.videos, public.admins, public.amistosos_publico from anon;
 
 -- Candidaturas e amistosos: o visitante só insere as colunas do formulário (id, created_at, status,
 -- nota_admin, placares e origem ficam de fora). O admin lê, altera e apaga; se inserir, só as colunas do formulário.

@@ -19,12 +19,12 @@ Não apague o arquivo `CNAME` do repositório, senão o domínio para de funcion
 | `assets/css/style.css` | Visual. As cores ficam no topo (`--gold`, `--bg`...) |
 | `assets/js/vendor/supabase-2.45.4.min.js` | Biblioteca do Supabase usada só no painel, hospedada aqui (sem CDN). Para atualizar, troque o arquivo e o nome no `admin.html` |
 | `supabase/schema.sql` | Banco completo para uma instalação **nova** (tabelas, regras de segurança, limite de envios e pasta de fotos) |
-| `supabase/migrations/` | Alterações para um banco que **já existe**. Rode na ordem do nome (`01`, `02`, `03`, `04`) no SQL Editor |
+| `supabase/migrations/` | Alterações para um banco que **já existe**. Rode na ordem do nome (`01` a `05`) no SQL Editor. As 5 já foram rodadas no projeto `ec-oxe` em 17/11/2026 |
 | `supabase/verificacao.sql` | Conferência só de leitura, para rodar depois das migrações |
 
 ## Painel (admin.html)
 
-Acesse https://ecoxe1.github.io/admin.html e entre com o e-mail e a senha de administrador.
+Acesse https://ecoxe.club/admin.html e entre com o e-mail e a senha de administrador.
 
 - **Candidaturas:** veja quem quer entrar, aprove ou recuse e anote.
 - **Amistosos:** confirme o pedido (ele aparece na agenda pública), depois marque como realizado e coloque o placar.

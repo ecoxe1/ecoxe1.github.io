@@ -53,7 +53,9 @@
   async function inicia() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return telaLogin();
-    const { data: adm } = await sb.from("admins").select("user_id").eq("user_id", session.user.id).maybeSingle();
+    const { data: adm, error: errAdm } = await sb.from("admins").select("user_id").eq("user_id", session.user.id).maybeSingle();
+    if (expirada(errAdm)) return expira();
+    if (errAdm) return telaLogin("Não foi possível conferir o acesso agora. Tente de novo em instantes.");
     if (!adm) { await sb.auth.signOut(); return telaLogin("Esta conta não é de administrador."); }
     root.innerHTML = `
       <div class="adm-top"><span class="by">Logado como <b>${esc(session.user.email)}</b></span><button class="btn btn-ghost btn-sm" id="sair" type="button">Sair</button></div>
