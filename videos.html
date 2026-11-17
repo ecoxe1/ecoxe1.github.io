@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vídeos | EC OXE</title>
+<meta name="description" content="Lances e partidas do EC OXE no Pro Clubs.">
+<meta name="theme-color" content="#0a0a0b">
+<link rel="icon" href="assets/img/escudo.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-page="videos">
+<nav id="nav"></nav>
+<header class="page-head"><div class="wrap">
+  <div class="eyebrow">Na tela</div>
+  <h1>Vídeos</h1>
+  <p>Golaços, defesas e partidas completas.</p>
+</div></header>
+
+<section>
+  <div class="wrap">
+    <div class="toolbar">
+      <button class="fbtn on" data-vf="T">Todos</button>
+      <button class="fbtn" data-vf="lance">Lances</button>
+      <button class="fbtn" data-vf="partida">Partidas</button>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="vgrid" id="vgrid"></div>
+    <div class="empty-state" id="vnone" hidden>Nenhum vídeo por aqui ainda.</div>
+  </div>
+</section>
+
+<dialog id="vmodal" aria-label="Vídeo">
+  <button class="vclose" id="vclose" type="button" aria-label="Fechar">✕</button>
+  <div class="vstage" id="vstage"></div>
+  <div class="vinfo" id="vinfo"></div>
+</dialog>
+
+<footer id="footer"></footer>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>

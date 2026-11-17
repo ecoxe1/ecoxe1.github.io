@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Amistosos | EC OXE</title>
+<meta name="description" content="Marque um amistoso contra o EC OXE no Pro Clubs.">
+<meta name="theme-color" content="#0a0a0b">
+<link rel="icon" href="assets/img/escudo.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-page="amistosos">
+<nav id="nav"></nav>
+<header class="page-head"><div class="wrap">
+  <div class="eyebrow">Bora jogar</div>
+  <h1>Amistosos</h1>
+  <p id="hours"></p>
+</div></header>
+
+<section>
+  <div class="wrap two">
+    <div id="formBox">
+      <form class="panel" id="amForm" novalidate>
+        <h3>Pedir um amistoso</h3>
+        <div class="fgrid">
+          <div><label for="time">Nome do seu time *</label><input id="time" name="time" required></div>
+          <div><label for="capitao">Capitão *<br><small>PSN ou gamertag</small></label><input id="capitao" name="capitao" required></div>
+          <div><label for="contato">Contato *<br><small>Discord, WhatsApp ou Instagram</small></label><input id="contato" name="contato" required></div>
+          <div><label for="plataforma">Plataforma *</label>
+            <select id="plataforma" name="plataforma"><option>PlayStation 5</option><option>Xbox Series</option><option>PC</option><option>Crossplay</option></select></div>
+          <div><label for="data">Dia *</label><input id="data" name="data" type="date" required></div>
+          <div><label for="hora">Horário *</label><input id="hora" name="hora" type="time" required></div>
+          <div><label for="data2">Outra opção de dia<br><small>opcional</small></label><input id="data2" name="data2" type="date"></div>
+          <div><label for="hora2">Outra opção de horário<br><small>opcional</small></label><input id="hora2" name="hora2" type="time"></div>
+          <div><label for="divisao">Divisão</label>
+            <select id="divisao" name="divisao"><option value="">Não sei / prefiro não dizer</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option></select></div>
+          <div><label for="jogadores">Quantos jogadores?</label><input id="jogadores" name="jogadores" type="number" min="1" max="11" inputmode="numeric"></div>
+          <div class="full"><label for="obs">Observações</label><textarea id="obs" name="obs" maxlength="600"></textarea></div>
+        </div>
+        <div class="hp" aria-hidden="true"><label for="website">Não preencha</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
+        <div class="factions"><button class="btn btn-gold" id="amSend" type="submit">Enviar pedido</button><small class="by">* obrigatório</small></div>
+        <div class="msg" id="amMsg" role="status" hidden></div>
+      </form>
+    </div>
+    <div class="side-col">
+      <div class="panel"><h3>Próximos amistosos</h3><div id="agenda"></div></div>
+      <div class="panel"><h3>Regras da casa</h3>
+        <ul class="reqs"><li>Respeito em campo e no chat.</li><li>Tolerância de 10 minutos no horário marcado.</li><li>Placar e lances podem aparecer aqui no site.</li></ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer id="footer"></footer>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>

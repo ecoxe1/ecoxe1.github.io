@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elenco | EC OXE</title>
+<meta name="description" content="Elenco do EC OXE: jogadores, posições, gols, assistências e jogos.">
+<meta name="theme-color" content="#0a0a0b">
+<link rel="icon" href="assets/img/escudo.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-page="elenco">
+<nav id="nav"></nav>
+<header class="page-head"><div class="wrap">
+  <div class="eyebrow">O time</div>
+  <h1>Elenco</h1>
+  <p>Todo mundo que veste a camisa do <span data-nome></span>. Busque pelo nome ou pelo ID da PSN.</p>
+</div></header>
+
+<section>
+  <div class="wrap">
+    <div class="toolbar">
+      <button class="fbtn on" data-pos="T">Todos</button>
+      <button class="fbtn" data-pos="GK">Goleiros</button>
+      <button class="fbtn" data-pos="ZAG">Zagueiros</button>
+      <button class="fbtn" data-pos="LAT">Laterais</button>
+      <button class="fbtn" data-pos="VOL">Volantes</button>
+      <button class="fbtn" data-pos="MEI">Meias</button>
+      <button class="fbtn" data-pos="ATA">Atacantes</button>
+    </div>
+    <div class="toolbar">
+      <input id="q" type="search" placeholder="Buscar jogador ou PSN" aria-label="Buscar jogador">
+      <select id="sort" aria-label="Ordenar por">
+        <option value="j">Mais jogos</option>
+        <option value="g">Mais gols</option>
+        <option value="a">Mais assistências</option>
+        <option value="mvp">Mais vezes MVP</option>
+        <option value="o">Maior overall</option>
+      </select>
+      <button class="fbtn" id="inact" type="button">Mostrar ex-jogadores</button>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="cards" id="cards"></div>
+    <div class="empty-state" id="none" hidden>Ninguém encontrado com esse filtro.</div>
+  </div>
+</section>
+
+<footer id="footer"></footer>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>

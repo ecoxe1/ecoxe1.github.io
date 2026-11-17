@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Partidas | EC OXE</title>
+<meta name="description" content="Todos os resultados do EC OXE no Pro Clubs.">
+<meta name="theme-color" content="#0a0a0b">
+<link rel="icon" href="assets/img/escudo.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-page="partidas">
+<nav id="nav"></nav>
+<header class="page-head"><div class="wrap">
+  <div class="eyebrow">Temporada atual</div>
+  <h1>Partidas</h1>
+  <p>O histórico completo de jogos. Toque num jogo para ver os detalhes.</p>
+</div></header>
+
+<section>
+  <div class="wrap">
+    <div class="resbar" id="resbar"></div>
+    <div class="panel">
+      <div class="toolbar">
+        <button class="fbtn on" data-f="T">Todos</button>
+        <button class="fbtn" data-f="V">Vitórias</button>
+        <button class="fbtn" data-f="E">Empates</button>
+        <button class="fbtn" data-f="D">Derrotas</button>
+        <span class="count" id="count"></span>
+      </div>
+      <div class="form" id="form" aria-label="Sequência dos últimos jogos"></div>
+      <div id="matches"></div>
+    </div>
+  </div>
+</section>
+
+<footer id="footer"></footer>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>

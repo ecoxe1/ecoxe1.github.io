@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recrutamento | EC OXE</title>
+<meta name="description" content="Quer jogar no EC OXE? Faça seu cadastro para o teste.">
+<meta name="theme-color" content="#0a0a0b">
+<link rel="icon" href="assets/img/escudo.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-page="recrutamento">
+<nav id="nav"></nav>
+<header class="page-head"><div class="wrap">
+  <div class="eyebrow">Recrutamento aberto</div>
+  <h1>Jogue no <span data-nome></span></h1>
+  <p id="posLine"></p>
+</div></header>
+
+<section>
+  <div class="wrap two">
+    <div id="recBox">
+      <form class="panel" id="recForm" novalidate>
+        <h3>Sua candidatura</h3>
+        <div class="fgrid">
+          <div><label for="psn">ID no jogo *<br><small>PSN ou gamertag</small></label><input id="psn" name="psn" autocomplete="off" required></div>
+          <div><label for="nick">Como quer ser chamado<br><small>opcional</small></label><input id="nick" name="nick"></div>
+          <div><label for="plataforma">Plataforma *</label>
+            <select id="plataforma" name="plataforma"><option>PlayStation 5</option><option>Xbox Series</option><option>PC</option></select></div>
+          <div><label for="contato">Contato *<br><small>Discord, WhatsApp ou Instagram</small></label><input id="contato" name="contato" required></div>
+          <div><label for="posicao">Posição principal *</label>
+            <select id="posicao" name="posicao" required><option value="">Escolha</option><option>Goleiro</option><option>Zagueiro</option><option>Lateral</option><option>Volante</option><option>Meia</option><option>Ponta</option><option>Atacante</option></select></div>
+          <div><label for="posicao2">Segunda posição<br><small>opcional</small></label>
+            <select id="posicao2" name="posicao2"><option value="">Nenhuma</option><option>Goleiro</option><option>Zagueiro</option><option>Lateral</option><option>Volante</option><option>Meia</option><option>Ponta</option><option>Atacante</option></select></div>
+          <div><label for="horarios">Horários livres</label><input id="horarios" name="horarios" placeholder="ex.: seg a sex, depois das 21h"></div>
+          <div><label for="experiencia">Experiência no Pro Clubs</label>
+            <select id="experiencia" name="experiencia"><option value="">Escolha</option><option>Começando agora</option><option>Jogo casual</option><option>Já joguei em clube</option><option>Competitivo / liga</option></select></div>
+          <div><label for="clube_anterior">Último clube</label><input id="clube_anterior" name="clube_anterior"></div>
+          <div><label for="lances">Link de lances<br><small>YouTube, Medal, Twitch...</small></label><input id="lances" name="lances" type="url" placeholder="https://"></div>
+          <div class="full"><label for="sobre">Fale um pouco de você</label><textarea id="sobre" name="sobre" maxlength="800"></textarea></div>
+        </div>
+        <div class="hp" aria-hidden="true"><label for="website">Não preencha</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
+        <div class="factions"><button class="btn btn-gold" id="recSend" type="submit">Enviar candidatura</button><small class="by">* obrigatório</small></div>
+        <div class="msg" id="recMsg" role="status" hidden></div>
+      </form>
+    </div>
+    <div class="side-col">
+      <div class="panel"><h3>O que a gente espera</h3><ul class="reqs" id="reqs"></ul></div>
+      <div class="panel"><h3>Como funciona</h3>
+        <ol class="reqs"><li>Você manda a candidatura.</li><li>A diretoria chama você no contato informado.</li><li>Marcamos um teste em jogo, sem pressão.</li><li>Passou? Bem-vindo ao farol.</li></ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer id="footer"></footer>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
