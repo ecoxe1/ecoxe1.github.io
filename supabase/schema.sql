@@ -358,3 +358,20 @@ grant select, update on public.lives to service_role;
 alter table public.temporada add column if not exists jogadores jsonb not null default '[]';
 alter table public.temporada drop constraint if exists temporada_jogadores_lista;
 alter table public.temporada add constraint temporada_jogadores_lista check (jsonb_typeof(jogadores) = 'array' and jsonb_array_length(jogadores) <= 40);
+
+-- ---------- Atualização automática diária às 06:00 de Brasília (migração 16) ----------
+grant select, insert, update on public.partidas, public.temporada to service_role;
+
+create extension if not exists pg_cron;
+create extension if not exists pg_net with schema extensions;
+
+select cron.schedule(
+  'ec-oxe-importa-tracker',
+  '0 9 * * *',
+  $$ select net.http_post(
+       url := 'https://dvwvmoqslovnbjbvbeqd.supabase.co/functions/v1/importa-tracker',
+       headers := '{"Content-Type": "application/json"}'::jsonb,
+       body := '{}'::jsonb,
+       timeout_milliseconds := 30000
+     ) $$
+);

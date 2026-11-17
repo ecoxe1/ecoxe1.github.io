@@ -19,7 +19,8 @@ Não apague o arquivo `CNAME` do repositório, senão o domínio para de funcion
 | `assets/css/style.css` | Visual. As cores ficam no topo (`--gold`, `--bg`...) |
 | `assets/js/vendor/supabase-2.118.0.min.js` | Biblioteca do Supabase usada só no painel, hospedada aqui (sem CDN). Para atualizar, troque o arquivo e o nome no `admin.html` |
 | `supabase/schema.sql` | Banco completo para uma instalação **nova** (tabelas, regras de segurança, limite de envios e pasta de fotos) |
-| `supabase/migrations/` | Alterações para um banco que **já existe**. Rode na ordem do nome (`01` a `15`) no SQL Editor. As 01 a 14 já foram rodadas no projeto `ec-oxe` em 17/11/2026 |
+| `supabase/migrations/` | Alterações para um banco que **já existe**. Rode na ordem do nome (`01` a `16`) no SQL Editor. As 01 a 16 já foram rodadas no projeto `ec-oxe` em 17/11/2026 |
+| `supabase/functions/importa-tracker/` | Função que atualiza partidas, temporada e jogadores todo dia às 06:00 (pg_cron) |
 | `supabase/functions/checa-live/` | Função do Supabase que confere se os canais do YouTube e da Twitch estão ao vivo (farol do menu) |
 | `assets/js/favorito-tracker.js` | Código do favorito "⚽ Copiar do tracker" (o painel monta o link a partir dele; não roda no site) |
 | `supabase/verificacao.sql` | Conferência só de leitura, para rodar depois das migrações |
@@ -61,6 +62,10 @@ Acesse https://ecoxe.club/admin.html e entre com o e-mail e a senha de administr
 3. Depois de rodar as migrações, abra *Advisors > Security Advisor* e confira se não sobrou alerta.
 
 ## Atualizar as estatísticas (sem mexer em código)
+
+**Automático:** todo dia às **06:00 de Brasília** o Supabase (agendador `pg_cron`, tarefa `ec-oxe-importa-tracker`) chama a função `importa-tracker`, que lê a API pública do Pro Clubs Tracker e grava partidas, temporada e os totais de cada jogador. Não depende de computador ligado. A divisão não é mudada por ela (só pelo favorito abaixo). Para conferir: no SQL Editor, `select * from cron.job_run_details order by start_time desc limit 5;`. Importante: a EA só guarda as **10 últimas partidas**; se o time jogar mais de 10 num dia, as mais antigas desse dia não entram na lista de partidas (os totais dos jogadores continuam certos). Para não perder nenhuma, use também o favorito logo depois da sessão de jogos.
+
+**Na hora (manual):**
 
 1. No painel, aba **Estatísticas**, arraste o botão **⚽ Copiar do tracker** para a barra de favoritos (uma vez só).
 2. Abra a página do EC OXE no Pro Clubs Tracker, espere carregar e clique no favorito. Ele abre cada partida e, no fim, mostra **Enviar para o painel do EC OXE**.
