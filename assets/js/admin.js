@@ -12,6 +12,12 @@
   const ytId = s => { s = (s || "").trim(); const m = s.match(/(?:youtu\.be\/|[?&]v=|embed\/|shorts\/|live\/)([\w-]{11})/); return m ? m[1] : (/^[\w-]{11}$/.test(s) ? s : null); };
   const quando = iso => { const d = new Date(iso); return `${pad(d.getDate())}/${pad(d.getMonth() + 1)} às ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
   const erro = e => (e && (e.message || e.error_description)) || String(e);
+  /* Sessão vencida: o Supabase responde "JWT expired" (PGRST301) ou 401. Em vez de mostrar erro solto, volta para o login. */
+  const expirada = e => !!e && (e.code === "PGRST301" || e.status === 401 || e.statusCode === "401" || /jwt expired|invalid jwt|jwt.*expir/i.test(String(e.message || e)));
+  const expira = () => sb.auth.signOut({ scope: "local" }).catch(() => {}).then(() => telaLogin("Sua sessão expirou. Entre de novo."));
+  const falhou = (e, prefixo) => { if (expirada(e)) { expira(); return; } diga(prefixo + erro(e), false); };
+  /* Link vindo do banco só vira <a> se for http(s); senão aparece como texto (esc() sozinho não bloqueia "javascript:"). */
+  const link = (url, texto) => urlHttp(url) ? `<a href="${esc(urlHttp(url))}" target="_blank" rel="noopener noreferrer">${esc(texto ?? url)}</a>` : esc(texto ?? url);
   let aviso;
   const diga = (t, ok = true) => {
     let el = document.getElementById("adm-toast");
@@ -65,7 +71,7 @@
     guarda.set("oxe_aba", k);
     qa("[data-aba]").forEach(b => b.classList.toggle("on", b.dataset.aba === k));
     q("#aba").innerHTML = `<div class="empty-state">Carregando…</div>`;
-    ABAS[k]().catch(e => { q("#aba").innerHTML = `<div class="msg err">Erro: ${esc(erro(e))}</div>`; });
+    ABAS[k]().catch(e => { if (expirada(e)) return expira(); q("#aba").innerHTML = `<div class="msg err">Erro: ${esc(erro(e))}</div>`; });
   }
 
   /* ---------- Candidaturas ---------- */
@@ -83,7 +89,7 @@
           <dt>Horários</dt><dd>${esc(c.horarios || "-")}</dd>
           <dt>Experiência</dt><dd>${esc(c.experiencia || "-")}</dd>
           <dt>Último clube</dt><dd>${esc(c.clube_anterior || "-")}</dd>
-          ${c.lances ? `<dt>Lances</dt><dd><a href="${esc(c.lances)}" target="_blank" rel="noopener">${esc(c.lances)}</a></dd>` : ""}
+          ${c.lances ? `<dt>Lances</dt><dd>${link(c.lances)}</dd>` : ""}
           ${c.sobre ? `<dt>Sobre</dt><dd>${esc(c.sobre)}</dd>` : ""}
           <dt>Enviada</dt><dd>${quando(c.created_at)}</dd>
         </dl>
@@ -133,13 +139,13 @@
         ev.target.disabled = true;
         const { error } = await sb.from(tabela).update(dados).eq("id", id);
         ev.target.disabled = false;
-        if (error) return diga("Erro ao salvar: " + erro(error), false);
+        if (error) return falhou(error, "Erro ao salvar: ");
         diga("Salvo!"); recarrega();
       };
       card.querySelector("[data-apagar]").onclick = async () => {
         if (!confirm("Apagar de vez? Não dá para desfazer.")) return;
         const { error } = await sb.from(tabela).delete().eq("id", id);
-        if (error) return diga("Erro ao apagar: " + erro(error), false);
+        if (error) return falhou(error, "Erro ao apagar: ");
         diga("Apagado."); recarrega();
       };
     });
@@ -159,7 +165,7 @@
           <div><label>Data</label><input name="data" type="date" value="${a?.data || hojeISO}"></div>
           <div class="full"><label>Resumo <small>(linha abaixo do título)</small></label><input name="resumo" maxlength="300" value="${esc(a?.resumo || "")}"></div>
           <div><label>Autor</label><input name="autor" maxlength="60" value="${esc(a?.autor || "Diretoria")}"></div>
-          <div><label>Capa <small>(foto do topo)</small></label><input name="capaArq" type="file" accept="image/*">${a?.capa ? `<small class="by">Atual: <a href="${esc(a.capa)}" target="_blank" rel="noopener">ver capa</a></small>` : ""}</div>
+          <div><label>Capa <small>(foto do topo)</small></label><input name="capaArq" type="file" accept="image/*">${a?.capa ? `<small class="by">Atual: ${link(a.capa, "ver capa")}</small>` : ""}</div>
           <div class="full"><label>Texto * <small>Linha em branco separa parágrafos · "## " no começo vira subtítulo · **negrito** · *itálico* · [texto](https://link)</small></label>
             <textarea name="corpo" rows="12" required>${esc(a?.corpo || "")}</textarea>
             <div class="factions" style="margin-top:8px"><label class="btn btn-ghost btn-sm" style="margin:0">Inserir foto no texto<input type="file" accept="image/*" id="fotoTexto" hidden></label></div></div>
@@ -181,7 +187,7 @@
         const leg = prompt("Legenda da foto (opcional):") || "";
         f.corpo.value = f.corpo.value.replace(/\s*$/, "") + `\n\n![${leg.replace(/[\[\]]/g, "")}](${url})\n\n`;
         diga("Foto inserida no texto.");
-      } catch (err) { diga("Erro ao enviar foto: " + erro(err), false); }
+      } catch (err) { falhou(err, "Erro ao enviar foto: "); }
       e.target.value = "";
     };
     f.onsubmit = async e => {
@@ -197,13 +203,13 @@
         const { error } = a ? await sb.from("news").update(dados).eq("id", a.id) : await sb.from("news").insert({ id: slug(dados.titulo), ...dados });
         if (error) throw error;
         diga(a ? "Notícia atualizada!" : "Notícia publicada!"); abaNoticias();
-      } catch (err) { btn.disabled = false; btn.textContent = a ? "Salvar alterações" : "Publicar notícia"; diga("Erro: " + erro(err), false); }
+      } catch (err) { btn.disabled = false; btn.textContent = a ? "Salvar alterações" : "Publicar notícia"; falhou(err, "Erro: "); }
     };
     qa("[data-ed]").forEach(b => b.onclick = () => { abaNoticias(b.dataset.ed); window.scrollTo({ top: 0, behavior: "smooth" }); });
     qa("[data-del]").forEach(b => b.onclick = async () => {
       if (!confirm("Apagar esta notícia de vez?")) return;
       const { error } = await sb.from("news").delete().eq("id", b.dataset.del);
-      if (error) return diga("Erro ao apagar: " + erro(error), false);
+      if (error) return falhou(error, "Erro ao apagar: ");
       diga("Notícia apagada."); abaNoticias();
     });
   }
@@ -224,7 +230,7 @@
           <div class="full"><label>De onde vem o vídeo?</label>
             <select name="origem"><option value="youtube"${tipoSrc === "youtube" ? " selected" : ""}>YouTube</option><option value="arquivo"${tipoSrc === "arquivo" ? " selected" : ""}>Enviar arquivo (MP4, até 50 MB)</option><option value="link"${tipoSrc === "link" ? " selected" : ""}>Outro link (Twitch, Medal, Instagram…)</option></select></div>
           <div class="full" data-orig="youtube"><label>Link do YouTube</label><input name="yt" placeholder="https://youtu.be/..." value="${tipoSrc === "youtube" ? "https://youtu.be/" + esc(valSrc) : ""}"></div>
-          <div class="full" data-orig="arquivo"><label>Arquivo de vídeo</label><input name="arq" type="file" accept="video/mp4,video/webm">${tipoSrc === "arquivo" ? `<small class="by">Atual: <a href="${esc(valSrc)}" target="_blank" rel="noopener">ver vídeo</a> (deixe vazio para manter)</small>` : ""}</div>
+          <div class="full" data-orig="arquivo"><label>Arquivo de vídeo</label><input name="arq" type="file" accept="video/mp4,video/webm">${tipoSrc === "arquivo" ? `<small class="by">Atual: ${link(valSrc, "ver vídeo")} (deixe vazio para manter)</small>` : ""}</div>
           <div class="full" data-orig="link"><label>Link</label><input name="link" type="url" placeholder="https://" value="${tipoSrc === "link" ? esc(valSrc) : ""}"></div>
           <div><label>Capa <small>(opcional; YouTube já tem)</small></label><input name="capaArq" type="file" accept="image/*"></div>
           <div><label>Partida relacionada <small>(opcional)</small></label><select name="partida"><option value="">Nenhuma</option>${partidas.map(m => `<option value="${esc(m.id)}"${v?.partida === m.id ? " selected" : ""}>${dataCurta(m.data)} · ${esc(m.adv)} ${m.gp}–${m.gc}</option>`).join("")}</select></div>
@@ -259,13 +265,13 @@
         const { error } = v ? await sb.from("videos").update(dados).eq("id", v.id) : await sb.from("videos").insert({ id: slug(dados.titulo), ...dados });
         if (error) throw error;
         diga(v ? "Vídeo atualizado!" : "Vídeo publicado!"); abaVideos();
-      } catch (err) { btn.disabled = false; btn.textContent = v ? "Salvar alterações" : "Publicar vídeo"; diga("Erro: " + erro(err), false); }
+      } catch (err) { btn.disabled = false; btn.textContent = v ? "Salvar alterações" : "Publicar vídeo"; falhou(err, "Erro: "); }
     };
     qa("[data-ed]").forEach(b => b.onclick = () => { abaVideos(b.dataset.ed); window.scrollTo({ top: 0, behavior: "smooth" }); });
     qa("[data-del]").forEach(b => b.onclick = async () => {
       if (!confirm("Apagar este vídeo de vez?")) return;
       const { error } = await sb.from("videos").delete().eq("id", b.dataset.del);
-      if (error) return diga("Erro ao apagar: " + erro(error), false);
+      if (error) return falhou(error, "Erro ao apagar: ");
       diga("Vídeo apagado."); abaVideos();
     });
   }

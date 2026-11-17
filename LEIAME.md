@@ -17,7 +17,10 @@ Não apague o arquivo `CNAME` do repositório, senão o domínio para de funcion
 | `assets/js/app.js` | Monta as páginas |
 | `assets/js/admin.js` | Painel |
 | `assets/css/style.css` | Visual. As cores ficam no topo (`--gold`, `--bg`...) |
-| `supabase/schema.sql` | Script do banco (tabelas, regras de segurança e pasta de fotos) |
+| `assets/js/vendor/supabase-2.45.4.min.js` | Biblioteca do Supabase usada só no painel, hospedada aqui (sem CDN). Para atualizar, troque o arquivo e o nome no `admin.html` |
+| `supabase/schema.sql` | Banco completo para uma instalação **nova** (tabelas, regras de segurança, limite de envios e pasta de fotos) |
+| `supabase/migrations/` | Alterações para um banco que **já existe**. Rode na ordem do nome (`01`, `02`, `03`, `04`) no SQL Editor |
+| `supabase/verificacao.sql` | Conferência só de leitura, para rodar depois das migrações |
 
 ## Painel (admin.html)
 
@@ -37,6 +40,15 @@ Acesse https://ecoxe1.github.io/admin.html e entre com o e-mail e a senha de adm
      `insert into public.admins (user_id) select id from auth.users where email = 'email@da.pessoa';`
 - Visitantes só conseguem **enviar** candidaturas e pedidos e **ler** notícias, vídeos e a agenda pública. Ler pedidos, postar e apagar exige login de admin.
 - Nunca coloque a chave **secret** / **service_role** no site.
+- Links (lances, capas, vídeos) só aceitam `http(s)`, tanto no site quanto no banco. Os envios têm limite por hora no servidor (candidaturas: 3 por aparelho e 30 no total; amistosos: 5 e 40). Os números ficam no fim de `supabase/migrations/20261117_03_limite_envios.sql` (e no `schema.sql`).
+- Mudou o banco? Crie um arquivo novo em `supabase/migrations/` (`AAAAMMDD_NN_nome.sql`) e atualize o `schema.sql` para ficarem iguais.
+- Todas as páginas têm uma política de conteúdo (`Content-Security-Policy` no `<head>`). Se um dia o site passar a usar outro serviço externo (analytics, outra fonte, outro player), acrescente o endereço dele nessa linha em todos os `.html`, senão o navegador bloqueia.
+
+### Configurações no painel do Supabase (não são código)
+
+1. *Authentication > Sign In / Providers*: desligar **Allow new users to sign up** e **Allow anonymous sign-ins**.
+2. MFA (segundo fator): em *Authentication > Multi-Factor* confira que o TOTP está habilitado, mas **isso sozinho não protege nada**: o painel ainda não tem tela para cadastrar e pedir o código, nem as regras do banco exigem o segundo fator (`aal2`). Isso é uma etapa de código, ainda pendente. Até lá, use senha longa e única para cada admin.
+3. Depois de rodar as migrações, abra *Advisors > Security Advisor* e confira se não sobrou alerta.
 
 ## Atualizar dados fixos
 

@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; media-src 'self' https:; frame-src https://www.youtube-nocookie.com https://www.youtube.com; connect-src 'self' https://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'">
 <title>Recrutamento | EC OXE</title>
 <meta name="description" content="Quer jogar no EC OXE? Faça seu cadastro para o teste.">
 <meta name="theme-color" content="#0a0a0b">
@@ -10,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=4">
+<link rel="stylesheet" href="assets/css/style.css?v=5">
 </head>
 <body data-page="recrutamento">
 <nav id="nav"></nav>
@@ -26,23 +27,23 @@
       <form class="panel" id="recForm" novalidate>
         <h3>Sua candidatura</h3>
         <div class="fgrid">
-          <div><label for="psn">ID no jogo *<br><small>PSN ou gamertag</small></label><input id="psn" name="psn" autocomplete="off" required></div>
-          <div><label for="nick">Como quer ser chamado<br><small>opcional</small></label><input id="nick" name="nick"></div>
+          <div><label for="psn">ID no jogo *<br><small>PSN ou gamertag</small></label><input id="psn" name="psn" autocomplete="off" maxlength="40" required></div>
+          <div><label for="nick">Como quer ser chamado<br><small>opcional</small></label><input id="nick" name="nick" maxlength="40"></div>
           <div><label for="plataforma">Plataforma *</label>
             <select id="plataforma" name="plataforma"><option>PlayStation 5</option><option>Xbox Series</option><option>PC</option></select></div>
-          <div><label for="contato">Contato *<br><small>Discord, WhatsApp ou Instagram</small></label><input id="contato" name="contato" required></div>
+          <div><label for="contato">Contato *<br><small>Discord, WhatsApp ou Instagram</small></label><input id="contato" name="contato" maxlength="120" required></div>
           <div><label for="posicao">Posição principal *</label>
             <select id="posicao" name="posicao" required><option value="">Escolha</option><option>Goleiro</option><option>Zagueiro</option><option>Lateral</option><option>Volante</option><option>Meia</option><option>Ponta</option><option>Atacante</option></select></div>
           <div><label for="posicao2">Segunda posição<br><small>opcional</small></label>
             <select id="posicao2" name="posicao2"><option value="">Nenhuma</option><option>Goleiro</option><option>Zagueiro</option><option>Lateral</option><option>Volante</option><option>Meia</option><option>Ponta</option><option>Atacante</option></select></div>
-          <div><label for="horarios">Horários livres</label><input id="horarios" name="horarios" placeholder="ex.: seg a sex, depois das 21h"></div>
+          <div><label for="horarios">Horários livres</label><input id="horarios" name="horarios" maxlength="120" placeholder="ex.: seg a sex, depois das 21h"></div>
           <div><label for="experiencia">Experiência no Pro Clubs</label>
             <select id="experiencia" name="experiencia"><option value="">Escolha</option><option>Começando agora</option><option>Jogo casual</option><option>Já joguei em clube</option><option>Competitivo / liga</option></select></div>
-          <div><label for="clube_anterior">Último clube</label><input id="clube_anterior" name="clube_anterior"></div>
-          <div><label for="lances">Link de lances<br><small>YouTube, Medal, Twitch...</small></label><input id="lances" name="lances" type="url" placeholder="https://"></div>
+          <div><label for="clube_anterior">Último clube</label><input id="clube_anterior" name="clube_anterior" maxlength="60"></div>
+          <div><label for="lances">Link de lances<br><small>YouTube, Medal, Twitch...</small></label><input id="lances" name="lances" type="url" maxlength="300" placeholder="https://"></div>
           <div class="full"><label for="sobre">Fale um pouco de você</label><textarea id="sobre" name="sobre" maxlength="800"></textarea></div>
         </div>
-        <div class="hp" aria-hidden="true"><label for="website">Não preencha</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
+        <div class="hp" aria-hidden="true"><label for="hp_campo">Deixe em branco</label><input id="hp_campo" name="hp_campo" type="text" tabindex="-1" autocomplete="off" data-lpignore="true" data-1p-ignore="true"></div>
         <div class="factions"><button class="btn btn-gold" id="recSend" type="submit">Enviar candidatura</button><small class="by">* obrigatório</small></div>
         <div class="msg" id="recMsg" role="status" hidden></div>
       </form>
@@ -57,8 +58,8 @@
 </section>
 
 <footer id="footer"></footer>
-<script src="assets/js/data.js?v=4"></script>
-<script src="assets/js/config.js?v=4"></script>
-<script src="assets/js/app.js?v=4"></script>
+<script src="assets/js/data.js?v=5"></script>
+<script src="assets/js/config.js?v=5"></script>
+<script src="assets/js/app.js?v=5"></script>
 </body>
 </html>
