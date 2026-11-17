@@ -1,7 +1,10 @@
 # Site do EC OXE
 
-Site estático (HTML, CSS e JavaScript puro) publicado em https://ecoxe1.github.io
-(repositório `ecoxe1/ecoxe1.github.io`, GitHub Pages pela branch `main`).
+Site estático (HTML, CSS e JavaScript puro) publicado em **https://ecoxe.club**
+(repositório `ecoxe1/ecoxe1.github.io`, GitHub Pages pela branch `main`; o arquivo `CNAME` liga o domínio).
+
+DNS no GoDaddy: 4 registros `A @` para 185.199.108.153, .109.153, .110.153 e .111.153, e `CNAME www` para `ecoxe1.github.io`.
+Não apague o arquivo `CNAME` do repositório, senão o domínio para de funcionar.
 
 ## Estrutura
 
