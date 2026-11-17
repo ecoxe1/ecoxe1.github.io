@@ -68,11 +68,15 @@ const conta = r => partidas.filter(m => res(m) === r).length;
 const golsPro = () => partidas.reduce((s, m) => s + m.gp, 0);
 const golsContra = () => partidas.reduce((s, m) => s + m.gc, 0);
 
+/* Usa os números da temporada (clube.temporada, do tracker) quando existirem; senão, soma as partidas da lista. */
 function faixaNumeros(el) {
-  const n = partidas.length, v = conta("V"), e = conta("E"), d = conta("D");
-  const pct = n ? Math.round(v / n * 100) : 0, saldo = golsPro() - golsContra();
+  const t = clube.temporada;
+  const n = t ? t.jogos : partidas.length, v = t ? t.v : conta("V"), e = t ? t.e : conta("E"), d = t ? t.d : conta("D");
+  const gp = t ? t.gp : golsPro(), gc = t ? t.gc : golsContra();
+  const pct = n ? Math.round(v / n * 100) : 0, saldo = gp - gc;
   const bar = `<div class="bar"><i style="flex:${v};background:var(--win)"></i><i style="flex:${e};background:var(--draw)"></i><i style="flex:${d};background:var(--loss)"></i></div>`;
-  el.innerHTML = [[n, "Jogos"], [pct + "%", "Vitórias" + bar], [golsPro(), "Gols marcados"], [(saldo > 0 ? "+" : "") + saldo, "Saldo de gols"], [clube.fundacao, "Fundação"]]
+  el.innerHTML = [[n, "Jogos na temporada"], [pct + "%", `Vitórias (${v}V ${e}E ${d}D)` + bar], [gp, "Gols marcados"], [(saldo > 0 ? "+" : "") + saldo, "Saldo de gols"],
+    t && t.divisao ? [t.divisao, "Divisão" + (t.sr ? ` · SR ${t.sr}` : "")] : [clube.fundacao, "Fundação"]]
     .map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join("");
 }
 function sequencia(el, lista) {

@@ -1,66 +1,68 @@
 /* =====================================================================
-   EC OXE: todos os dados do site ficam neste arquivo.
-   Edite à vontade: é só texto. Salve, recarregue a página e pronto.
-   Tudo marcado com EXEMPLO deve ser trocado pelos dados reais do time.
+   EC OXE: dados fixos do site. Edite à vontade: é só texto.
+   Fonte das estatísticas: Pro Clubs Tracker, clube 2210096 (EA FC 27, crossplay PS5/Xbox/PC).
+   Última atualização com o tracker: 17/11/2026.
+   Notícias e vídeos novos são postados pelo painel (admin.html); as listas daqui são reserva.
    ===================================================================== */
 
 /* ---------- Clube ---------- */
 const clube = {
   nome: "EC OXE",
   fundacao: 2018,
-  jogo: "EA FC 26",
-  plataforma: "PlayStation 5",          // ex.: "PS5", "Xbox", "Todas as plataformas"
+  jogo: "EA FC 27",
+  plataforma: "Crossplay PS5 · Xbox · PC",
   slogan: "Oxe, é gol!",                // frase grande da página inicial
   frase: "Time de Pro Clubs que joga sério e não perde a resenha. Bora jogar com a gente?",
   discord: "",                          // convite do Discord, ex.: "https://discord.gg/xxxx". Vazio = botão some
   instagram: "",                        // ex.: "https://instagram.com/ecoxe"
   youtube: "",                          // ex.: "https://youtube.com/@ecoxe"
   twitch: "",
-  tracker: "",                          // link do clube no proclubstracker.com (opcional)
+  tracker: "https://proclubstracker.com/club/2210096?platform=common-gen5",
+  /* Números da temporada inteira, do tracker (a lista de partidas abaixo tem só os jogos mais recentes).
+     Gols marcados e sofridos calculados pela média do tracker (2,67 por jogo) e pelo saldo (+2). */
+  temporada: { jogos: 27, v: 11, e: 5, d: 11, gp: 72, gc: 70, divisao: 3, sr: 1506 },
 };
 
-/* ---------- Elenco (EXEMPLO) ----------
-   n: nome no jogo   p: posição (GK, ZAG, LAT, VOL, MEI, ATA)
-   o: overall        j: jogos   g: gols   a: assistências   mvp: vezes melhor em campo
-   psn: ID na PSN/gamertag      foto: arquivo em assets/players/ (vazio = silhueta)
-   ativo: false esconde o jogador da lista padrão (ex.: saiu do time) */
+/* ---------- Elenco ----------
+   n: nome mostrado   p: posição (GK, ZAG, LAT, VOL, MEI, ATA)   o: overall (0 = não informado)
+   j / g / a / mvp: jogos, gols, assistências e vezes melhor em campo NAS PARTIDAS REGISTRADAS ABAIXO
+   psn: ID na PSN/gamertag   foto: arquivo em assets/players/ (vazio = silhueta)   ativo:false esconde da lista
+   Para mostrar o nome do jogador no jogo em vez da PSN, troque só o "n" (ex.: n:"Carlos JR") e use o mesmo nome nas partidas. */
 const elenco = [
-  {n:"Capitão Farol", p:"ATA", o:84, j:120, g:96, a:41, mvp:22, psn:"exemplo_farol", foto:"", ativo:true},
-  {n:"Mainha Dez",    p:"MEI", o:83, j:115, g:38, a:77, mvp:18, psn:"exemplo_mainha", foto:"", ativo:true},
-  {n:"Arretado",      p:"ATA", o:82, j:98,  g:71, a:25, mvp:12, psn:"exemplo_arretado", foto:"", ativo:true},
-  {n:"Visse",         p:"VOL", o:81, j:102, g:9,  a:30, mvp:9,  psn:"exemplo_visse", foto:"", ativo:true},
-  {n:"Muralha",       p:"ZAG", o:83, j:110, g:6,  a:4,  mvp:11, psn:"exemplo_muralha", foto:"", ativo:true},
-  {n:"Paredão",       p:"GK",  o:85, j:95,  g:0,  a:1,  mvp:14, psn:"exemplo_paredao", foto:"", ativo:true},
-  {n:"Lateral Liso",  p:"LAT", o:80, j:64,  g:5,  a:19, mvp:4,  psn:"exemplo_liso", foto:"", ativo:true},
-  {n:"Zé Rasteira",   p:"ZAG", o:79, j:51,  g:2,  a:3,  mvp:3,  psn:"", foto:"", ativo:true},
-  {n:"Bicuda",        p:"MEI", o:78, j:22,  g:6,  a:8,  mvp:1,  psn:"", foto:"", ativo:false},
+  {n:"JygOk", p:"MEI", o:0, j:10, g:6, a:2, mvp:0, psn:"JygOk", foto:"", ativo:true},
+  {n:"Monkeyvader91", p:"MEI", o:0, j:8, g:1, a:13, mvp:2, psn:"Monkeyvader91", foto:"", ativo:true},
+  {n:"L. Gantois", p:"ATA", o:78, j:7, g:18, a:6, mvp:2, psn:"LucasGantoisP", foto:"", ativo:true},
+  {n:"deGoose14", p:"ZAG", o:76, j:7, g:0, a:1, mvp:0, psn:"deGoose14", foto:"", ativo:true},
+  {n:"PeuIvo27", p:"MEI", o:0, j:3, g:1, a:0, mvp:0, psn:"PeuIvo27", foto:"", ativo:true},
+  {n:"BIGGENDD", p:"ATA", o:0, j:3, g:1, a:2, mvp:0, psn:"BIGGENDD", foto:"", ativo:true},
+  {n:"Diegomengo0313", p:"MEI", o:0, j:3, g:0, a:0, mvp:1, psn:"Diegomengo0313", foto:"", ativo:true},
+  {n:"Balbenadal", p:"MEI", o:0, j:2, g:1, a:0, mvp:1, psn:"Balbenadal", foto:"", ativo:true},
+  {n:"RP_BBMP", p:"MEI", o:0, j:2, g:0, a:0, mvp:1, psn:"RP_BBMP", foto:"", ativo:true},
+  {n:"daniloqc84", p:"", o:0, j:0, g:0, a:0, mvp:0, psn:"daniloqc84", foto:"", ativo:true},
 ];
 
-/* ---------- Partidas (EXEMPLO) ----------
-   Coloque a mais recente no TOPO.
-   data: "aaaa-mm-ddThh:mm"   comp: "Liga", "Copa", "Amistoso"...
-   gols / assist: nomes do elenco (repita o nome se fez mais de um)   mvp: melhor em campo */
+/* ---------- Partidas (do Pro Clubs Tracker) ----------
+   A mais recente no TOPO. id = número da partida no tracker.
+   gols / assist: nomes do elenco (repetido = mais de um). mvp vazio = o melhor em campo foi do adversário. */
 const partidas = [
-  {id:"p8", data:"2026-10-26T22:10", adv:"Arraial United", comp:"Liga", gp:3, gc:1, gols:["Capitão Farol","Capitão Farol","Arretado"], assist:["Mainha Dez","Visse"], mvp:"Capitão Farol"},
-  {id:"p7", data:"2026-10-26T21:40", adv:"Maré Alta EC",   comp:"Liga", gp:2, gc:2, gols:["Arretado","Mainha Dez"], assist:["Lateral Liso"], mvp:"Paredão"},
-  {id:"p6", data:"2026-10-25T22:30", adv:"Sertão FC",      comp:"Liga", gp:1, gc:0, gols:["Muralha"], assist:["Mainha Dez"], mvp:"Muralha"},
-  {id:"p5", data:"2026-10-25T21:55", adv:"Real Cuscuz",    comp:"Amistoso", gp:4, gc:2, gols:["Capitão Farol","Arretado","Arretado","Visse"], assist:["Mainha Dez","Mainha Dez","Capitão Farol"], mvp:"Arretado"},
-  {id:"p4", data:"2026-10-24T22:20", adv:"Atlético Dendê", comp:"Liga", gp:0, gc:1, gols:[], assist:[], mvp:"Paredão"},
-  {id:"p3", data:"2026-10-24T21:45", adv:"Bairro Novo FC", comp:"Liga", gp:2, gc:1, gols:["Mainha Dez","Capitão Farol"], assist:["Arretado"], mvp:"Mainha Dez"},
-  {id:"p2", data:"2026-10-22T22:00", adv:"Ladeira SC",     comp:"Copa", gp:1, gc:3, gols:["Arretado"], assist:["Lateral Liso"], mvp:"Visse"},
-  {id:"p1", data:"2026-10-22T21:30", adv:"Porto Seguro EC",comp:"Liga", gp:5, gc:0, gols:["Capitão Farol","Capitão Farol","Capitão Farol","Arretado","Lateral Liso"], assist:["Mainha Dez","Mainha Dez","Visse"], mvp:"Capitão Farol"},
+  {id:"400169", data:"2026-11-16T22:32", adv:"Royal Madridd", comp:"Liga", gp:1, gc:1, gols:["PeuIvo27"], assist:["BIGGENDD"], mvp:"RP_BBMP"},
+  {id:"650018", data:"2026-11-16T22:15", adv:"El Mango", comp:"Liga", gp:0, gc:0, gols:[], assist:[], mvp:""},
+  {id:"800261", data:"2026-11-16T22:09", adv:"The Burb United", comp:"Liga", gp:2, gc:3, gols:["BIGGENDD","JygOk"], assist:["BIGGENDD"], mvp:"Diegomengo0313"},
+  {id:"160450", data:"2026-11-15T04:05", adv:"Fc delvaux", comp:"Liga", gp:6, gc:0, gols:["L. Gantois","L. Gantois","L. Gantois","Monkeyvader91","JygOk","JygOk"], assist:["L. Gantois","L. Gantois","L. Gantois","Monkeyvader91","Monkeyvader91","JygOk"], mvp:"L. Gantois"},
+  {id:"100340", data:"2026-11-15T03:48", adv:"The JLA", comp:"Liga", gp:7, gc:2, gols:["L. Gantois","L. Gantois","L. Gantois","L. Gantois","L. Gantois","L. Gantois","JygOk"], assist:["L. Gantois","Monkeyvader91","Monkeyvader91","Monkeyvader91","Monkeyvader91","JygOk"], mvp:"L. Gantois"},
+  {id:"240385", data:"2026-11-15T03:27", adv:"Des Sources FC", comp:"Liga", gp:3, gc:4, gols:["L. Gantois","L. Gantois","L. Gantois"], assist:["Monkeyvader91","Monkeyvader91","deGoose14"], mvp:"Monkeyvader91"},
+  {id:"670070", data:"2026-11-15T03:11", adv:"EMPIRE SBZ", comp:"Liga", gp:2, gc:0, gols:["JygOk","L. Gantois"], assist:["Monkeyvader91"], mvp:"Monkeyvader91"},
+  {id:"760001", data:"2026-11-15T02:55", adv:"Los Cholos 504", comp:"Liga", gp:3, gc:4, gols:["JygOk","L. Gantois","L. Gantois"], assist:["Monkeyvader91","Monkeyvader91","L. Gantois"], mvp:""},
+  {id:"210350", data:"2026-11-15T02:33", adv:"Tri of Death", comp:"Liga", gp:2, gc:4, gols:["L. Gantois","L. Gantois"], assist:["Monkeyvader91"], mvp:"Balbenadal"},
+  {id:"030139", data:"2026-11-15T02:18", adv:"Tumbados CDF", comp:"Liga", gp:3, gc:0, gols:["Balbenadal","L. Gantois"], assist:["Monkeyvader91","L. Gantois"], mvp:""},
 ];
 
-/* ---------- Vídeos (EXEMPLO) ----------
-   src: "youtube:ID" (o código depois de v= no link), "arquivo:nome.mp4" (em assets/videos/) ou "link:https://..."
-   tipo: "lance" ou "partida"   partida: id de uma partida acima (opcional) */
-const videos = [
-  {id:"hat-trick-farol", titulo:"Hat-trick do Capitão Farol contra o Porto Seguro", tipo:"lance", data:"2026-10-22", src:"link:https://www.youtube.com/", capa:"", desc:"Troque por um vídeo real do time.", partida:"p1"},
-];
+/* ---------- Vídeos (reserva; poste pelo painel) ----------
+   src: "youtube:ID", "arquivo:nome.mp4" (em assets/videos/) ou "link:https://..."   tipo: "lance" ou "partida" */
+const videos = [];
 
-/* ---------- Notícias (EXEMPLO) ----------
-   corpo: lista de parágrafos. {t:"Subtítulo"} vira subtítulo; {img:"foto.jpg", legenda:"..."} vira foto (assets/news/).
-   Dentro do texto: **negrito**, *itálico* e [texto](https://link). */
+/* ---------- Notícias (reserva; poste pelo painel) ----------
+   corpo: lista de parágrafos. {t:"Subtítulo"} vira subtítulo; {img:"foto.jpg", legenda:"..."} vira foto (assets/news/). */
 const noticias = [
   {id:"bem-vindos", chapeu:"Clube", titulo:"EC OXE ganha site oficial", data:"2026-10-27", autor:"Diretoria",
    resumo:"Elenco, resultados, amistosos e recrutamento agora num lugar só.",
@@ -79,8 +81,7 @@ const recrutamento = {
 };
 const amistosos = {
   horarios: "Costumamos jogar à noite, a partir das 21h (horário de Brasília). Sugira o melhor dia e horário para o seu time.",
-  agenda: [ /* amistosos confirmados (EXEMPLO). Com o Supabase ligado, a agenda vem da nuvem.
-    {time:"Real Cuscuz", data:"2026-10-30", hora:"22:00", plataforma:"PS5"}, */ ],
+  agenda: [], /* amistosos confirmados vêm do painel (Supabase) */
 };
 
 /* Tempo mínimo (segundos) entre dois envios de formulário no mesmo aparelho */
