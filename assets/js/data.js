@@ -34,7 +34,7 @@ const elenco = [
   {n:"Monkeyvader91", p:"MEI", o:0, j:8, g:1, a:13, mvp:2, psn:"Monkeyvader91", foto:"", ativo:true},
   {n:"L. Gantois", p:"ATA", o:78, j:7, g:18, a:6, mvp:2, psn:"LucasGantoisP", foto:"", ativo:true},
   {n:"deGoose14", p:"ZAG", o:76, j:7, g:0, a:1, mvp:0, psn:"deGoose14", foto:"", ativo:true},
-  {n:"PeuIvo27", p:"MEI", o:0, j:3, g:1, a:0, mvp:0, psn:"PeuIvo27", foto:"", ativo:true},
+  {n:"PeuIvo27", p:"MEI", o:0, j:3, g:1, a:0, mvp:0, psn:"PeuIvo27", foto:"peuivo27.webp", ativo:true},
   {n:"BIGGENDD", p:"ATA", o:0, j:3, g:1, a:2, mvp:0, psn:"BIGGENDD", foto:"", ativo:true},
   {n:"Diegomengo0313", p:"MEI", o:0, j:3, g:0, a:0, mvp:1, psn:"Diegomengo0313", foto:"", ativo:true},
   {n:"Balbenadal", p:"MEI", o:0, j:2, g:1, a:0, mvp:1, psn:"Balbenadal", foto:"", ativo:true},
